@@ -1,0 +1,424 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Users (Authentication)
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  passwordHash  String?
+  name          String
+  phone         String?
+  role          Role
+  
+  schoolId      String?
+  school        School?   @relation(fields: [schoolId], references: [id])
+  
+  // Auth
+  emailVerified DateTime?
+  lastLoginAt   DateTime?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  students         Student[]    @relation("ParentStudents")
+  routes           Route[]      @relation("DriverRoutes")
+  auditLogs        AuditLog[]
+  consents         Consent[]
+  importJobs       ImportJob[]
+  fcmTokens        FcmToken[]
+  notifications    Notification[]
+  absences         Absence[]    @relation("ParentAbsences")
+  tripLogs         TripLog[]    @relation("DriverTripLogs")
+  
+  @@index([schoolId])
+  @@index([email])
+}
+
+enum Role {
+  ADMIN
+  DRIVER
+  PARENT
+  STUDENT
+}
+
+// Schools
+model School {
+  id           String   @id @default(cuid())
+  name         String
+  addressStreet String   @default("")
+  addressCity   String   @default("")
+  addressPostal String   @default("")
+  contactEmail String
+  contactPhone String
+  
+  // Service area
+  latitude     Float
+  longitude    Float
+  radiusKm     Float    @default(15)
+  
+  // Settings
+  settings     Json?
+  
+  // Timestamps
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  
+  // Relations
+  users        User[]
+  students     Student[]
+  routes       Route[]
+  
+  @@index([name])
+}
+
+// Students
+model Student {
+  id             String   @id @default(cuid())
+  name           String
+  studentCode    String   @unique // Human-readable identifier (e.g., STU-00001)
+  dateOfBirth    DateTime
+  grade          Int
+  
+  // Address
+  addressStreet  String
+  addressPostal  String
+  addressCity    String
+  latitude       Float
+  longitude      Float
+  
+  // Photo
+  photoURL       String?
+  
+  // Relations
+  schoolId       String
+  school         School   @relation(fields: [schoolId], references: [id])
+  
+  parentId       String?
+  parent         User?    @relation("ParentStudents", fields: [parentId], references: [id])
+  
+  routeId        String?
+  route          Route?   @relation(fields: [routeId], references: [id])
+  
+  // Status
+  status         StudentStatus @default(ACTIVE)
+  
+  // Medical (encrypted)
+  medicalInfo    Json?
+  
+  // Timestamps
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  
+  // Relations
+  consents           Consent[]
+  absences           Absence[]
+  emergencyContacts  EmergencyContact[]
+  attendances        Attendance[]
+  
+  @@index([schoolId, status])
+  @@index([parentId])
+  @@index([routeId])
+  @@index([studentCode])
+}
+
+enum StudentStatus {
+  ACTIVE
+  INACTIVE
+  GRADUATED
+  TRANSFERRED
+}
+
+// Routes
+model Route {
+  id               String      @id @default(cuid())
+  name             String
+  
+  schoolId         String
+  school           School      @relation(fields: [schoolId], references: [id])
+  
+  driverId         String
+  driver           User        @relation("DriverRoutes", fields: [driverId], references: [id])
+  
+  capacity         Int
+  currentStudents  Int         @default(0)
+  
+  // Schedule
+  monday           Boolean     @default(true)
+  tuesday          Boolean     @default(true)
+  wednesday        Boolean     @default(true)
+  thursday         Boolean     @default(true)
+  friday           Boolean     @default(true)
+  startTime        String      // "07:00"
+  endTime          String      // "08:30"
+  
+  // Status
+  status           RouteStatus @default(IDLE)
+  
+  // Timestamps
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  
+  // Relations
+  students         Student[]
+  stops            Stop[]
+  tripLogs         TripLog[]
+  
+  @@index([schoolId])
+  @@index([driverId])
+  @@index([status])
+}
+
+enum RouteStatus {
+  IDLE
+  EN_ROUTE_TO_SCHOOL
+  AT_SCHOOL
+  EN_ROUTE_FROM_SCHOOL
+  COMPLETED
+  DELAYED
+  EMERGENCY
+}
+
+// Stops
+model Stop {
+  id             String   @id @default(cuid())
+  routeId        String
+  route          Route    @relation(fields: [routeId], references: [id], onDelete: Cascade)
+  
+  name           String
+  address        String
+  latitude       Float
+  longitude      Float
+  
+  scheduledTime  String   // "07:15"
+  orderIndex     Int
+  
+  createdAt      DateTime @default(now())
+  
+  @@index([routeId, orderIndex])
+}
+
+// GDPR Consents
+model Consent {
+  id         String      @id @default(cuid())
+  userId     String
+  user       User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  studentId  String?
+  student    Student?    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  type       ConsentType
+  granted    Boolean
+  
+  // Metadata
+  grantedAt  DateTime
+  ipAddress  String      // hashed
+  userAgent  String
+  version    String      // consent text version
+  
+  // Withdrawal
+  withdrawnAt DateTime?
+  
+  createdAt  DateTime    @default(now())
+  
+  @@index([userId, type])
+  @@index([studentId, type])
+}
+
+enum ConsentType {
+  DATA_PROCESSING
+  LOCATION_TRACKING
+  PHOTO
+  MEDICAL_INFO
+  MARKETING
+}
+
+// Audit Logs
+model AuditLog {
+  id           String   @id @default(cuid())
+  
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  
+  action       String   // "create", "read", "update", "delete"
+  resourceType String   // "student", "route", "user"
+  resourceId   String
+  
+  // Changes (for updates)
+  changesBefore Json?
+  changesAfter  Json?
+  
+  // Request metadata
+  ipAddress    String   // hashed
+  userAgent    String
+  
+  timestamp    DateTime @default(now())
+  
+  @@index([userId, timestamp])
+  @@index([resourceType, resourceId])
+  @@index([timestamp])
+}
+
+// Import Jobs
+model ImportJob {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  type      String   // "STUDENT_IMPORT"
+  filename  String?
+  status    String   // "COMPLETED", "FAILED"
+  total     Int
+  success   Int
+  failed    Int
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// FCM Push Notification Tokens
+model FcmToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  device    String?  // e.g. "Chrome on macOS"
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Notification Log
+model Notification {
+  id           String           @id @default(cuid())
+  title        String
+  body         String
+  targetType   NotificationTarget
+  targetValue  String?          // role name or userId — null for ALL
+  successCount Int              @default(0)
+  failureCount Int              @default(0)
+
+  sentById     String
+  sentBy       User             @relation(fields: [sentById], references: [id])
+
+  sentAt       DateTime         @default(now())
+
+  @@index([sentById])
+  @@index([sentAt])
+}
+
+enum NotificationTarget {
+  ALL
+  ROLE
+  USER
+}
+
+// Absence Reports
+model Absence {
+  id          String   @id @default(cuid())
+
+  studentId   String
+  student     Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  reportedById String
+  reportedBy   User     @relation("ParentAbsences", fields: [reportedById], references: [id])
+
+  date        DateTime // The date the child will be absent
+  reason      String?
+  note        String?
+
+  createdAt   DateTime @default(now())
+
+  @@index([studentId, date])
+  @@index([reportedById])
+}
+
+// Emergency Contacts
+model EmergencyContact {
+  id           String   @id @default(cuid())
+
+  studentId    String
+  student      Student  @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  name         String
+  relationship String   // e.g. "Mother", "Grandfather"
+  phone        String
+  email        String?
+  isPrimary    Boolean  @default(false)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([studentId])
+}
+
+// ── Driver Trip Logs ─────────────────────────────────────────
+enum TripStatus {
+  ONGOING
+  COMPLETED
+  CANCELLED
+}
+
+model TripLog {
+  id           String     @id @default(cuid())
+
+  routeId      String
+  route        Route      @relation(fields: [routeId], references: [id])
+
+  driverId     String
+  driver       User       @relation("DriverTripLogs", fields: [driverId], references: [id])
+
+  date         DateTime   // The calendar date of the trip (date only, no time)
+  status       TripStatus @default(ONGOING)
+
+  startedAt    DateTime   @default(now())
+  completedAt  DateTime?
+  notes        String?
+
+  attendances  Attendance[]
+
+  createdAt    DateTime   @default(now())
+
+  @@index([routeId, date])
+  @@index([driverId, date])
+}
+
+// ── Attendance ──────────────────────────────────────────────
+enum AttendanceStatus {
+  BOARDED
+  ABSENT
+  LATE
+}
+
+model Attendance {
+  id           String           @id @default(cuid())
+
+  tripLogId    String
+  tripLog      TripLog          @relation(fields: [tripLogId], references: [id], onDelete: Cascade)
+
+  studentId    String
+  student      Student          @relation(fields: [studentId], references: [id])
+
+  status       AttendanceStatus @default(BOARDED)
+  note         String?
+
+  recordedAt   DateTime         @default(now())
+
+  @@unique([tripLogId, studentId])
+  @@index([tripLogId])
+  @@index([studentId])
+}
