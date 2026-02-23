@@ -29,12 +29,23 @@ export function UserNav() {
   const settingsHref = user?.role === "DRIVER" ? "/driver/settings" : user?.role === "PARENT" ? "/parent/settings" : "/settings";
 
   return (
-    <DropdownMenu>
+    <DropdownMenu >
+   
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
+        
             <AvatarImage src="/avatars/01.png" alt={user?.name || ""} />
-            <AvatarFallback className="bg-primary/20 text-primary font-semibold">{initials}</AvatarFallback>
+       <AvatarFallback
+  className="
+    bg-indigo-100 text-indigo-600
+    dark:bg-indigo-500/10 dark:text-indigo-400
+    border border-indigo-200 dark:border-indigo-500/20
+    font-semibold
+  "
+>
+  {initials}
+</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
