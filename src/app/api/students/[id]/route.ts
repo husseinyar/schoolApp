@@ -14,13 +14,27 @@ const updateStudentSchema = z.object({
     routeId: z.string().nullable().optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]).optional(),
 
-    // Address
+    // Address — relaxed: city/postal may be empty (auto-filled by Google Places)
     addressStreet: z.string().min(1, "Street address is required").optional(),
-    addressCity: z.string().min(1, "City is required").optional(),
-    addressPostal: z.string().min(1, "Postal code is required").optional(),
+    addressCity: z.string().optional().default(""),
+    addressPostal: z.string().optional().default(""),
     latitude: z.number().optional(),
     longitude: z.number().optional(),
 });
+
+// Shared update logic
+async function updateStudent(id: string, body: unknown) {
+    const data = updateStudentSchema.parse(body);
+    const existing = await prisma.student.findUnique({ where: { id } });
+    if (!existing) throw new ApiError("Student not found", 404, "NOT_FOUND");
+
+    const student = await prisma.student.update({
+        where: { id },
+        data: { ...data },
+        include: { school: true },
+    });
+    return successResponse(student);
+}
 
 export async function GET(
     req: NextRequest,
@@ -64,27 +78,22 @@ export async function PUT(
         const { id } = await params;
         const auth = await ensureRole(["ADMIN"]); // Only admins can update for now
         if (!auth.authorized) throw new ApiError("Unauthorized", 403, "FORBIDDEN");
-
         const body = await req.json();
-        const data = updateStudentSchema.parse(body);
+        return updateStudent(id, body);
+    });
+}
 
-        // Check existence
-        const existing = await prisma.student.findUnique({ where: { id } });
-        if (!existing) throw new ApiError("Student not found", 404, "NOT_FOUND");
-
-        const student = await prisma.student.update({
-            where: { id },
-            data: {
-                ...data,
-                // If school is changing, we might need to validate it exists, but Prisma will throw if FK invalid.
-                // We could add explicit check if strict validation needed.
-            },
-            include: {
-                school: true,
-            }
-        });
-
-        return successResponse(student);
+// PATCH — alias for PUT, used by the Edit Student form
+export async function PATCH(
+    req: NextRequest,
+    { params }: { params: Promise<{ id: string }> }
+) {
+    return apiHandler(async () => {
+        const { id } = await params;
+        const auth = await ensureRole(["ADMIN"]);
+        if (!auth.authorized) throw new ApiError("Unauthorized", 403, "FORBIDDEN");
+        const body = await req.json();
+        return updateStudent(id, body);
     });
 }
 
@@ -101,10 +110,7 @@ export async function DELETE(
         const existing = await prisma.student.findUnique({ where: { id } });
         if (!existing) throw new ApiError("Student not found", 404, "NOT_FOUND");
 
-        // Hard delete
-        await prisma.student.delete({
-            where: { id },
-        });
+        await prisma.student.delete({ where: { id } });
 
         return successResponse({ success: true, message: "Student deleted" });
     });

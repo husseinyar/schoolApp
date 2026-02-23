@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useEffect, useState } from "react";
@@ -12,6 +11,10 @@ import { StudentForm } from "@/components/students/student-form";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 
+interface SelectOption { id: string; name: string; }
+interface ParentOption extends SelectOption { email: string; }
+interface RouteOption extends SelectOption {}
+
 export default function StudentsPage() {
   const { t } = useTranslation("common");
   const searchParams = useSearchParams();
@@ -22,24 +25,48 @@ export default function StudentsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [isOpen, setIsOpen] = useState(false);
-  
-  // Fetch logic
+  const [editStudent, setEditStudent] = useState<any | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Dropdown data for the form
+  const [schools, setSchools] = useState<SelectOption[]>([]);
+  const [routes, setRoutes] = useState<RouteOption[]>([]);
+  const [parents, setParents] = useState<ParentOption[]>([]);
+
+  // ── Fetch dropdown data once on mount ─────────────────────────────────────
+
+  useEffect(() => {
+    fetch("/api/schools?limit=100")
+      .then((r) => r.json())
+      .then((j) => j.success && setSchools(j.data.schools));
+
+    fetch("/api/routes?limit=100")
+      .then((r) => r.json())
+      .then((j) => j.success && setRoutes(j.data.routes ?? []));
+
+    fetch("/api/users?role=PARENT&limit=200")
+      .then((r) => r.json())
+      .then((j) => j.success && setParents(j.data.users ?? []));
+  }, []);
+
+  // ── Fetch student list ─────────────────────────────────────────────────────
+
   const fetchData = async () => {
     setLoading(true);
     try {
       const pageParam = searchParams.get("page") || "1";
       const searchParam = searchParams.get("search") || "";
       const schoolParam = searchParams.get("schoolId") || "";
-      
+
       const query = new URLSearchParams({
-          page: pageParam,
-          search: searchParam,
-          schoolId: schoolParam
+        page: pageParam,
+        search: searchParam,
+        schoolId: schoolParam,
       });
 
       const res = await fetch(`/api/students?${query.toString()}`);
       const json = await res.json();
-      
+
       if (json.success) {
         setData(json.data.students);
         setTotal(json.data.pagination.total);
@@ -56,6 +83,25 @@ export default function StudentsPage() {
     fetchData();
   }, [searchParams]);
 
+  // Handle edit param from URL
+  useEffect(() => {
+    const editId = searchParams.get("edit");
+    if (editId) {
+      fetch(`/api/students/${editId}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (j.success) {
+            setEditStudent(j.data);
+            setIsOpen(true);
+          }
+        });
+    } else {
+      setEditStudent(null);
+    }
+  }, [searchParams]);
+
+  // ── Handlers ───────────────────────────────────────────────────────────────
+
   const handleSearch = (term: string) => {
     const params = new URLSearchParams(searchParams);
     if (term) params.set("search", term);
@@ -64,14 +110,60 @@ export default function StudentsPage() {
   };
 
   const handlePageChange = (newPage: number) => {
-      const params = new URLSearchParams(searchParams);
-      params.set("page", newPage.toString());
-      router.replace(`/admin/students?${params.toString()}`);
+    const params = new URLSearchParams(searchParams);
+    params.set("page", newPage.toString());
+    router.replace(`/admin/students?${params.toString()}`);
   };
 
   const handleAddClick = () => {
+    setEditStudent(null);
     setIsOpen(true);
+    const params = new URLSearchParams(searchParams);
+    params.delete("edit");
+    router.replace(`/admin/students?${params.toString()}`);
   };
+
+  const handleCancel = () => {
+    setIsOpen(false);
+    setEditStudent(null);
+    const params = new URLSearchParams(searchParams);
+    params.delete("edit");
+    router.replace(`/admin/students?${params.toString()}`);
+  };
+
+  const handleSave = async (formData: any) => {
+    setIsSubmitting(true);
+    try {
+      const url = editStudent ? `/api/students/${editStudent.id}` : "/api/students";
+      const method = editStudent ? "PATCH" : "POST";
+
+      const res = await fetch(url, {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+
+      const json = await res.json();
+
+      if (res.ok && json.success) {
+        setIsOpen(false);
+        setEditStudent(null);
+        const params = new URLSearchParams(searchParams);
+        params.delete("edit");
+        router.replace(`/admin/students?${params.toString()}`);
+        fetchData();
+      } else {
+        alert(json.error?.message || "Error saving student");
+      }
+    } catch (error) {
+      console.error(error);
+      alert("Unexpected error. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
 
   return (
     <div className="space-y-6">
@@ -88,26 +180,33 @@ export default function StudentsPage() {
           className="max-w-sm"
           onChange={(e) => handleSearch(e.target.value)}
         />
-        {/* TODO: School Filter Select */}
       </div>
 
-      <DataTable 
-        columns={columns} 
-        data={data} 
-        pageCount={Math.ceil(total / 10)} 
+      <DataTable
+        columns={columns}
+        data={data}
+        pageCount={Math.ceil(total / 10)}
         onPageChange={handlePageChange}
         currentPage={page}
       />
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
-        <DialogContent className="sm:max-w-[600px]">
-            <DialogHeader>
-                <DialogTitle>{t("students.add_student")}</DialogTitle>
-            </DialogHeader>
-            <StudentForm 
-                onCancel={() => setIsOpen(false)} 
-                onSubmit={async () => {}} // Placeholder
-            />
+      <Dialog open={isOpen} onOpenChange={(open) => { if (!open) handleCancel(); }}>
+        <DialogContent className="sm:max-w-[680px] max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {editStudent ? "Edit Student" : t("students.add_student")}
+            </DialogTitle>
+          </DialogHeader>
+          <StudentForm
+            key={editStudent?.id || "new"}
+            initialData={editStudent ?? undefined}
+            onSubmit={handleSave}
+            onCancel={handleCancel}
+            isLoading={isSubmitting}
+            schools={schools}
+            routes={routes}
+            parents={parents}
+          />
         </DialogContent>
       </Dialog>
     </div>

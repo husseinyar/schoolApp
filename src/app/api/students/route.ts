@@ -14,10 +14,10 @@ const createStudentSchema = z.object({
     parentId: z.string().optional().nullable(), // Allow null or empty for optional
     routeId: z.string().optional().nullable(),
 
-    // Address
+    // Address — city/postal are auto-filled by Google Places and may be empty
     addressStreet: z.string().min(1, "Street address is required"),
-    addressCity: z.string().min(1, "City is required"),
-    addressPostal: z.string().min(1, "Postal code is required"),
+    addressCity: z.string().optional().default(""),
+    addressPostal: z.string().optional().default(""),
     latitude: z.number().optional().default(0),
     longitude: z.number().optional().default(0),
 });
