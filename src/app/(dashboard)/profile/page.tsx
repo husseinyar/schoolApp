@@ -1,53 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useSession } from "next-auth/react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import { User, Shield, Phone, Mail, Calendar, Building2, Eye, EyeOff, CheckCircle2, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import {
+    Mail, Phone, Calendar, Building2, Shield,
+    Clock, Settings, MapPin, Bus,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { cn } from "@/lib/utils";
-
-// ── Schemas ──────────────────────────────────────────────────────────────────
-
-const profileSchema = z.object({
-    name: z.string().min(2, "At least 2 characters"),
-    phone: z.string().regex(/^\+?[0-9\s\-()]{6,20}$/, "Invalid phone number").optional().or(z.literal("")),
-});
-
-const passwordSchema = z
-    .object({
-        currentPassword: z.string().min(1, "Required"),
-        newPassword: z
-            .string()
-            .min(8, "Minimum 8 characters")
-            .regex(/[A-Z]/, "Must contain an uppercase letter")
-            .regex(/[0-9]/, "Must contain a number"),
-        confirmPassword: z.string(),
-    })
-    .refine((d) => d.newPassword === d.confirmPassword, {
-        message: "Passwords do not match",
-        path: ["confirmPassword"],
-    });
-
-type ProfileFormData = z.infer<typeof profileSchema>;
-type PasswordFormData = z.infer<typeof passwordSchema>;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 function getInitials(name?: string | null) {
     if (!name) return "U";
-    return name
-        .split(" ")
-        .map((n) => n[0])
-        .join("")
-        .toUpperCase()
-        .slice(0, 2);
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -57,34 +24,23 @@ const ROLE_COLORS: Record<string, string> = {
     STUDENT: "bg-amber-500/20 text-amber-300 border-amber-500/40",
 };
 
-function PasswordStrength({ password }: { password: string }) {
-    const checks = [
-        { label: "8+ characters", pass: password.length >= 8 },
-        { label: "Uppercase", pass: /[A-Z]/.test(password) },
-        { label: "Number", pass: /[0-9]/.test(password) },
-    ];
-    const score = checks.filter((c) => c.pass).length;
-    const label = ["", "Weak", "Fair", "Strong"][score];
-    const color = ["", "text-red-400", "text-amber-400", "text-emerald-400"][score];
-    const barColor = ["", "bg-red-500", "bg-amber-500", "bg-emerald-500"][score];
+const ROLE_BG: Record<string, string> = {
+    ADMIN: "from-violet-600 to-violet-400",
+    DRIVER: "from-blue-600 to-blue-400",
+    PARENT: "from-emerald-600 to-emerald-400",
+    STUDENT: "from-amber-600 to-amber-400",
+};
 
-    if (!password) return null;
+function InfoRow({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value?: string | null }) {
+    if (!value) return null;
     return (
-        <div className="mt-2 space-y-1.5">
-            <div className="flex gap-1">
-                {[1, 2, 3].map((i) => (
-                    <div key={i} className={cn("h-1.5 flex-1 rounded-full transition-all duration-300", i <= score ? barColor : "bg-muted")} />
-                ))}
+        <div className="flex items-start gap-3 py-3">
+            <div className="p-1.5 rounded-md bg-muted mt-0.5 shrink-0">
+                <Icon className="h-4 w-4 text-muted-foreground" />
             </div>
-            <div className="flex items-center justify-between">
-                <span className={cn("text-xs font-medium", color)}>{label}</span>
-                <div className="flex gap-3">
-                    {checks.map((c) => (
-                        <span key={c.label} className={cn("text-xs flex items-center gap-1", c.pass ? "text-emerald-400" : "text-muted-foreground")}>
-                            <CheckCircle2 className="h-3 w-3" /> {c.label}
-                        </span>
-                    ))}
-                </div>
+            <div>
+                <p className="text-xs text-muted-foreground">{label}</p>
+                <p className="text-sm font-medium">{value}</p>
             </div>
         </div>
     );
@@ -93,240 +49,125 @@ function PasswordStrength({ password }: { password: string }) {
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ProfilePage() {
-    const { data: session, update: updateSession } = useSession();
     const [profile, setProfile] = useState<any>(null);
-    const [profileLoading, setProfileLoading] = useState(true);
-    const [profileSaving, setProfileSaving] = useState(false);
-    const [profileMsg, setProfileMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-    const [pwSaving, setPwSaving] = useState(false);
-    const [pwMsg, setPwMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
-    const [showCurrentPw, setShowCurrentPw] = useState(false);
-    const [showNewPw, setShowNewPw] = useState(false);
-
-    const profileForm = useForm<ProfileFormData>({ resolver: zodResolver(profileSchema) as any });
-    const passwordForm = useForm<PasswordFormData>({ resolver: zodResolver(passwordSchema) as any });
-
-    // ── Fetch profile ──────────────────────────────────────────────────────────
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         fetch("/api/profile")
             .then((r) => r.json())
-            .then((j) => {
-                if (j.success) {
-                    setProfile(j.data);
-                    profileForm.reset({ name: j.data.name, phone: j.data.phone ?? "" });
-                }
-            })
-            .finally(() => setProfileLoading(false));
+            .then((j) => j.success && setProfile(j.data))
+            .finally(() => setLoading(false));
     }, []);
 
-    // ── Handlers ──────────────────────────────────────────────────────────────
-
-    async function onProfileSave(values: ProfileFormData) {
-        setProfileSaving(true);
-        setProfileMsg(null);
-        try {
-            const res = await fetch("/api/profile", {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ name: values.name, phone: values.phone || null }),
-            });
-            const json = await res.json();
-            if (res.ok && json.success) {
-                setProfile((p: any) => ({ ...p, name: json.data.name, phone: json.data.phone }));
-                await updateSession({ name: json.data.name }); // sync NextAuth session
-                setProfileMsg({ type: "success", text: "Profile updated successfully!" });
-            } else {
-                setProfileMsg({ type: "error", text: json.error ?? "Update failed" });
-            }
-        } catch {
-            setProfileMsg({ type: "error", text: "Unexpected error. Try again." });
-        } finally {
-            setProfileSaving(false);
-        }
-    }
-
-    async function onPasswordSave(values: PasswordFormData) {
-        setPwSaving(true);
-        setPwMsg(null);
-        try {
-            const res = await fetch("/api/profile/change-password", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(values),
-            });
-            const json = await res.json();
-            if (res.ok && json.success) {
-                passwordForm.reset();
-                setPwMsg({ type: "success", text: "Password changed successfully!" });
-            } else {
-                setPwMsg({ type: "error", text: json.error ?? "Change failed" });
-            }
-        } catch {
-            setPwMsg({ type: "error", text: "Unexpected error. Try again." });
-        } finally {
-            setPwSaving(false);
-        }
-    }
-
-    const newPw = passwordForm.watch("newPassword") ?? "";
-
-    // ── Render ────────────────────────────────────────────────────────────────
+    const role = profile?.role ?? "";
 
     return (
-        <div className="max-w-3xl mx-auto py-8 px-4 space-y-8">
+        <div className="max-w-2xl mx-auto py-8 px-4 space-y-6">
 
             {/* ── Hero Card ── */}
-            <div className="relative overflow-hidden rounded-2xl border border-border/60 bg-gradient-to-br from-primary/10 via-background to-background p-8">
-                <div className="absolute inset-0 bg-grid-white/[0.02] pointer-events-none" />
-                <div className="relative flex items-start gap-6">
+            <div className={cn(
+                "relative overflow-hidden rounded-2xl p-8",
+                "bg-gradient-to-br from-primary/10 via-background to-background border border-border/60"
+            )}>
+                {/* Decorative blob */}
+                <div className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-primary/10 blur-3xl pointer-events-none" />
+
+                <div className="relative flex flex-col sm:flex-row items-center sm:items-start gap-6">
                     {/* Avatar */}
-                    <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-primary to-primary/60 flex items-center justify-center text-2xl font-bold text-primary-foreground shadow-lg shrink-0">
-                        {profileLoading ? "…" : getInitials(profile?.name)}
+                    <div className={cn(
+                        "h-24 w-24 rounded-2xl flex items-center justify-center text-3xl font-bold text-white shadow-xl shrink-0 bg-gradient-to-br",
+                        ROLE_BG[role] ?? "from-primary to-primary/60"
+                    )}>
+                        {loading ? "…" : getInitials(profile?.name)}
                     </div>
 
-                    <div className="min-w-0 flex-1">
-                        <div className="flex items-center flex-wrap gap-2 mb-1">
-                            <h1 className="text-2xl font-bold truncate">{profileLoading ? "Loading…" : profile?.name}</h1>
-                            {profile?.role && (
-                                <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full border", ROLE_COLORS[profile.role] ?? "bg-muted text-muted-foreground")}>
-                                    {profile.role}
+                    <div className="text-center sm:text-left flex-1 min-w-0">
+                        <h1 className="text-3xl font-bold truncate">
+                            {loading ? "Loading…" : (profile?.name ?? "—")}
+                        </h1>
+
+                        <div className="flex items-center justify-center sm:justify-start gap-2 mt-1.5 flex-wrap">
+                            {role && (
+                                <span className={cn(
+                                    "text-xs font-semibold px-2.5 py-0.5 rounded-full border",
+                                    ROLE_COLORS[role] ?? "bg-muted text-muted-foreground"
+                                )}>
+                                    {role}
+                                </span>
+                            )}
+                            {profile?.school?.name && (
+                                <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                    <Building2 className="h-3 w-3" /> {profile.school.name}
                                 </span>
                             )}
                         </div>
 
-                        <div className="space-y-1 text-sm text-muted-foreground">
-                            <div className="flex items-center gap-2"><Mail className="h-4 w-4" /> {profile?.email}</div>
-                            {profile?.phone && <div className="flex items-center gap-2"><Phone className="h-4 w-4" /> {profile.phone}</div>}
-                            {profile?.school && <div className="flex items-center gap-2"><Building2 className="h-4 w-4" /> {profile.school.name}</div>}
-                            {profile?.createdAt && (
-                                <div className="flex items-center gap-2">
-                                    <Calendar className="h-4 w-4" />
-                                    Member since {new Date(profile.createdAt).toLocaleDateString("en-SE", { year: "numeric", month: "long", day: "numeric" })}
-                                </div>
-                            )}
-                            {profile?.lastLoginAt && (
-                                <div className="flex items-center gap-2">
-                                    <Shield className="h-4 w-4" />
-                                    Last login: {new Date(profile.lastLoginAt).toLocaleString("en-SE")}
-                                </div>
-                            )}
-                        </div>
+                        <p className="mt-2 text-sm text-muted-foreground">{profile?.email}</p>
                     </div>
                 </div>
             </div>
 
-            {/* ── Edit Profile ── */}
-            <div className="rounded-xl border border-border/60 bg-card p-6 space-y-6">
-                <div>
-                    <h2 className="text-lg font-semibold flex items-center gap-2"><User className="h-5 w-5 text-primary" /> Personal Information</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">Update your display name and contact number.</p>
+            {/* ── Details Card ── */}
+            <div className="rounded-xl border border-border/60 bg-card p-6">
+                <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-1">
+                    Account Details
+                </h2>
+                <Separator className="mb-2" />
+
+                <div className="divide-y divide-border/50">
+                    <InfoRow icon={Mail} label="Email address" value={profile?.email} />
+                    <InfoRow icon={Phone} label="Phone number" value={profile?.phone ?? "Not set"} />
+                    <InfoRow icon={Shield} label="Role" value={role} />
+                    <InfoRow icon={Building2} label="School" value={profile?.school?.name} />
+                    <InfoRow
+                        icon={Calendar}
+                        label="Member since"
+                        value={
+                            profile?.createdAt
+                                ? new Date(profile.createdAt).toLocaleDateString("en-SE", {
+                                    year: "numeric", month: "long", day: "numeric",
+                                })
+                                : undefined
+                        }
+                    />
+                    <InfoRow
+                        icon={Clock}
+                        label="Last login"
+                        value={
+                            profile?.lastLoginAt
+                                ? new Date(profile.lastLoginAt).toLocaleString("en-SE")
+                                : "Never"
+                        }
+                    />
+                    {/* Driver: show assigned routes */}
+                    {profile?.routes?.length > 0 && (
+                        <div className="flex items-start gap-3 py-3">
+                            <div className="p-1.5 rounded-md bg-muted mt-0.5 shrink-0">
+                                <Bus className="h-4 w-4 text-muted-foreground" />
+                            </div>
+                            <div>
+                                <p className="text-xs text-muted-foreground">Assigned Routes</p>
+                                <div className="flex flex-wrap gap-1.5 mt-0.5">
+                                    {profile.routes.map((r: any) => (
+                                        <span key={r.id} className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/30">
+                                            {r.name}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
-                <Separator />
-
-                <form onSubmit={profileForm.handleSubmit(onProfileSave)} className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label htmlFor="pf-name">Full Name</Label>
-                            <Input id="pf-name" {...profileForm.register("name")} />
-                            {profileForm.formState.errors.name && (
-                                <p className="text-xs text-destructive">{profileForm.formState.errors.name.message}</p>
-                            )}
-                        </div>
-                        <div className="space-y-2">
-                            <Label htmlFor="pf-phone">Phone Number</Label>
-                            <Input id="pf-phone" type="tel" placeholder="+46 70 123 4567" {...profileForm.register("phone")} />
-                            {profileForm.formState.errors.phone && (
-                                <p className="text-xs text-destructive">{profileForm.formState.errors.phone.message}</p>
-                            )}
-                        </div>
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        {profileMsg && (
-                            <span className={cn("text-sm flex items-center gap-1.5",
-                                profileMsg.type === "success" ? "text-emerald-500" : "text-destructive")}>
-                                {profileMsg.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                                {profileMsg.text}
-                            </span>
-                        )}
-                        <Button type="submit" disabled={profileSaving} className="ml-auto">
-                            {profileSaving ? "Saving…" : "Save Changes"}
-                        </Button>
-                    </div>
-                </form>
             </div>
 
-            {/* ── Change Password ── */}
-            <div className="rounded-xl border border-border/60 bg-card p-6 space-y-6">
-                <div>
-                    <h2 className="text-lg font-semibold flex items-center gap-2"><Shield className="h-5 w-5 text-primary" /> Change Password</h2>
-                    <p className="text-sm text-muted-foreground mt-0.5">Use a strong password with uppercase letters and numbers.</p>
-                </div>
-                <Separator />
-
-                <form onSubmit={passwordForm.handleSubmit(onPasswordSave)} className="space-y-4">
-                    {/* Current password */}
-                    <div className="space-y-2">
-                        <Label htmlFor="cur-pw">Current Password</Label>
-                        <div className="relative">
-                            <Input
-                                id="cur-pw"
-                                type={showCurrentPw ? "text" : "password"}
-                                {...passwordForm.register("currentPassword")}
-                                className="pr-10"
-                            />
-                            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowCurrentPw((v) => !v)}>
-                                {showCurrentPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                        </div>
-                        {passwordForm.formState.errors.currentPassword && (
-                            <p className="text-xs text-destructive">{passwordForm.formState.errors.currentPassword.message}</p>
-                        )}
-                    </div>
-
-                    {/* New password */}
-                    <div className="space-y-2">
-                        <Label htmlFor="new-pw">New Password</Label>
-                        <div className="relative">
-                            <Input
-                                id="new-pw"
-                                type={showNewPw ? "text" : "password"}
-                                {...passwordForm.register("newPassword")}
-                                className="pr-10"
-                            />
-                            <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNewPw((v) => !v)}>
-                                {showNewPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                            </button>
-                        </div>
-                        <PasswordStrength password={newPw} />
-                        {passwordForm.formState.errors.newPassword && (
-                            <p className="text-xs text-destructive">{passwordForm.formState.errors.newPassword.message}</p>
-                        )}
-                    </div>
-
-                    {/* Confirm */}
-                    <div className="space-y-2">
-                        <Label htmlFor="conf-pw">Confirm New Password</Label>
-                        <Input id="conf-pw" type="password" {...passwordForm.register("confirmPassword")} />
-                        {passwordForm.formState.errors.confirmPassword && (
-                            <p className="text-xs text-destructive">{passwordForm.formState.errors.confirmPassword.message}</p>
-                        )}
-                    </div>
-
-                    <div className="flex items-center justify-between pt-2">
-                        {pwMsg && (
-                            <span className={cn("text-sm flex items-center gap-1.5",
-                                pwMsg.type === "success" ? "text-emerald-500" : "text-destructive")}>
-                                {pwMsg.type === "success" ? <CheckCircle2 className="h-4 w-4" /> : <AlertCircle className="h-4 w-4" />}
-                                {pwMsg.text}
-                            </span>
-                        )}
-                        <Button type="submit" disabled={pwSaving} className="ml-auto">
-                            {pwSaving ? "Changing…" : "Change Password"}
-                        </Button>
-                    </div>
-                </form>
+            {/* ── CTA ── */}
+            <div className="flex justify-end">
+                <Button asChild className="gap-2">
+                    <Link href="/settings">
+                        <Settings className="h-4 w-4" />
+                        Edit in Settings
+                    </Link>
+                </Button>
             </div>
         </div>
     );
