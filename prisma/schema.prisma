@@ -201,6 +201,8 @@ model Stop {
   address        String
   latitude       Float
   longitude      Float
+  postalCode     String?  // Filled by Google Places autocomplete
+  city           String?  // Filled by Google Places autocomplete
   
   scheduledTime  String   // "07:15"
   orderIndex     Int

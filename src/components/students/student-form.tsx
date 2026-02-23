@@ -4,8 +4,6 @@ import { useState } from "react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
-import { format } from "date-fns";
-import { CalendarIcon } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,27 +15,28 @@ import {
     SelectTrigger,
     SelectValue,
 } from "@/components/ui/select";
-import { cn } from "@/lib/utils";
 import { FormGrid, FormSection } from "@/components/ui/form-layout";
+import { AddressAutocomplete, PlaceDetails } from "@/components/shared/AddressAutocomplete";
 
-// Schema (matching API validation roughly)
+// ── Schema ─────────────────────────────────────────────────────────────────────
+
 const studentSchema = z.object({
     name: z.string().min(1, "Name is required"),
-    dateOfBirth: z.string().min(1, "Date of Birth is required"), // Keeping as string YYYY-MM-DD for simplicity in Input type="date"
+    dateOfBirth: z.string().min(1, "Date of Birth is required"),
     grade: z.coerce.number().min(0, "Grade must be 0 or higher").max(12, "Grade must be 12 or lower"),
     schoolId: z.string().min(1, "School is required"),
     parentId: z.string().optional().nullable(),
     routeId: z.string().optional().nullable(),
     status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]).default("ACTIVE"),
-    
-    // Address
-    addressStreet: z.string().min(1, "Street address is required"),
-    addressCity: z.string().min(1, "City is required"),
-    addressPostal: z.string().min(1, "Postal code is required"),
-    
-    // Coordinates (optional for manual entry, but good enough)
-    latitude: z.number().optional().default(0),
-    longitude: z.number().optional().default(0),
+
+    // Address — single formatted string from Google
+    addressStreet: z.string().min(3, "Address is required"),
+    addressCity: z.string().optional().default(""),
+    addressPostal: z.string().optional().default(""),
+
+    // Coordinates
+    latitude: z.number().default(0),
+    longitude: z.number().default(0),
 });
 
 type StudentFormValues = z.infer<typeof studentSchema>;
@@ -59,49 +58,64 @@ export function StudentForm({
     isLoading,
     schools = [],
     routes = [],
-    parents = []
+    parents = [],
 }: StudentFormProps) {
     const {
         register,
         control,
         handleSubmit,
+        setValue,
+        watch,
         formState: { errors },
     } = useForm<StudentFormValues>({
         resolver: zodResolver(studentSchema) as any,
-        defaultValues: initialData ? {
-            ...initialData,
-            dateOfBirth: initialData.dateOfBirth ? new Date(initialData.dateOfBirth).toISOString().split('T')[0] : "",
-            grade: initialData.grade,
-            latitude: initialData.latitude || 0,
-            longitude: initialData.longitude || 0,
-            parentId: initialData.parentId || "null", // Handle "null" string logic if needed, or clearable select
-            routeId: initialData.routeId || "null",
-        } : {
-            name: "",
-            dateOfBirth: "",
-            grade: 0,
-            schoolId: "",
-            status: "ACTIVE",
-            addressStreet: "",
-            addressCity: "",
-            addressPostal: "",
-            latitude: 0,
-            longitude: 0,
-        },
+        defaultValues: initialData
+            ? {
+                  ...initialData,
+                  dateOfBirth: initialData.dateOfBirth
+                      ? new Date(initialData.dateOfBirth).toISOString().split("T")[0]
+                      : "",
+                  grade: initialData.grade,
+                  latitude: initialData.latitude || 0,
+                  longitude: initialData.longitude || 0,
+                  parentId: initialData.parentId || "null",
+                  routeId: initialData.routeId || "null",
+              }
+            : {
+                  name: "",
+                  dateOfBirth: "",
+                  grade: 0,
+                  schoolId: "",
+                  status: "ACTIVE",
+                  addressStreet: "",
+                  addressCity: "",
+                  addressPostal: "",
+                  latitude: 0,
+                  longitude: 0,
+              },
     });
 
-    const onSubmitHandler: SubmitHandler<z.infer<typeof studentSchema>> = async (values) => {
-        // Transformations if needed
-        // Clean up "null" strings from selects if we used that technique
+    // The visible address input value (controlled separately for the autocomplete)
+    const addressStreet = watch("addressStreet");
+
+    function handleAddressSelect(details: PlaceDetails) {
+        setValue("addressStreet", details.formattedAddress, { shouldValidate: true });
+        setValue("addressCity", details.city ?? "");
+        setValue("addressPostal", details.postalCode ?? "");
+        setValue("latitude", details.lat);
+        setValue("longitude", details.lng);
+    }
+
+    const onSubmitHandler: SubmitHandler<StudentFormValues> = async (values) => {
         const cleanData = { ...values };
         if (cleanData.parentId === "null") cleanData.parentId = null;
         if (cleanData.routeId === "null") cleanData.routeId = null;
-        
         return onSubmit(cleanData);
     };
 
     return (
         <form onSubmit={handleSubmit(onSubmitHandler as any)} className="space-y-8">
+            {/* ── Basic Information ── */}
             <FormSection title="Basic Information" description="Personal details of the student.">
                 <FormGrid>
                     <div className="space-y-2">
@@ -113,7 +127,9 @@ export function StudentForm({
                     <div className="space-y-2">
                         <Label htmlFor="dateOfBirth">Date of Birth</Label>
                         <Input id="dateOfBirth" type="date" {...register("dateOfBirth")} />
-                        {errors.dateOfBirth && <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>}
+                        {errors.dateOfBirth && (
+                            <p className="text-sm text-destructive">{errors.dateOfBirth.message}</p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -141,14 +157,14 @@ export function StudentForm({
                                 </Select>
                             )}
                         />
-                         {errors.status && <p className="text-sm text-destructive">{errors.status.message}</p>}
                     </div>
                 </FormGrid>
             </FormSection>
 
+            {/* ── School & Assignment ── */}
             <FormSection title="School & Assignment" description="School, route, and parent association.">
                 <FormGrid>
-                   <div className="space-y-2">
+                    <div className="space-y-2">
                         <Label htmlFor="schoolId">School</Label>
                         <Controller
                             control={control}
@@ -168,7 +184,9 @@ export function StudentForm({
                                 </Select>
                             )}
                         />
-                        {errors.schoolId && <p className="text-sm text-destructive">{errors.schoolId.message}</p>}
+                        {errors.schoolId && (
+                            <p className="text-sm text-destructive">{errors.schoolId.message}</p>
+                        )}
                     </div>
 
                     <div className="space-y-2">
@@ -196,7 +214,7 @@ export function StudentForm({
 
                     <div className="space-y-2">
                         <Label htmlFor="parentId">Parent (Optional)</Label>
-                         <Controller
+                        <Controller
                             control={control}
                             name="parentId"
                             render={({ field }) => (
@@ -219,27 +237,49 @@ export function StudentForm({
                 </FormGrid>
             </FormSection>
 
-             <FormSection title="Address" description="Primary residence address.">
-                <FormGrid>
-                    <div className="space-y-2">
-                        <Label htmlFor="addressStreet">Street Address</Label>
-                        <Input id="addressStreet" {...register("addressStreet")} />
-                        {errors.addressStreet && <p className="text-sm text-destructive">{errors.addressStreet.message}</p>}
-                    </div>
+            {/* ── Address ── */}
+            <FormSection
+                title="Home Address"
+                description="Start typing to search for a Swedish address. Selecting a suggestion auto-fills coordinates."
+            >
+                <div className="space-y-2">
+                    <Label htmlFor="addressStreet">Address</Label>
+                    <AddressAutocomplete
+                        id="addressStreet"
+                        value={addressStreet}
+                        onChange={(val) => setValue("addressStreet", val)}
+                        onSelect={handleAddressSelect}
+                        placeholder="e.g. Ribbings väg 5A, Sollentuna"
+                        error={errors.addressStreet?.message}
+                    />
+                </div>
 
+                {/* Read-only derived fields */}
+                <FormGrid className="mt-4">
                     <div className="space-y-2">
-                        <Label htmlFor="addressCity">City</Label>
-                        <Input id="addressCity" {...register("addressCity")} />
-                         {errors.addressCity && <p className="text-sm text-destructive">{errors.addressCity.message}</p>}
+                        <Label>City</Label>
+                        <Input readOnly value={watch("addressCity") || ""} placeholder="Auto-filled" className="bg-muted/40" />
                     </div>
-
                     <div className="space-y-2">
-                        <Label htmlFor="addressPostal">Postal Code</Label>
-                        <Input id="addressPostal" {...register("addressPostal")} />
-                         {errors.addressPostal && <p className="text-sm text-destructive">{errors.addressPostal.message}</p>}
+                        <Label>Postal Code</Label>
+                        <Input readOnly value={watch("addressPostal") || ""} placeholder="Auto-filled" className="bg-muted/40" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Latitude</Label>
+                        <Input readOnly value={watch("latitude") || ""} placeholder="Auto-filled" className="bg-muted/40 font-mono text-xs" />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>Longitude</Label>
+                        <Input readOnly value={watch("longitude") || ""} placeholder="Auto-filled" className="bg-muted/40 font-mono text-xs" />
                     </div>
                 </FormGrid>
             </FormSection>
+
+            {/* Hidden inputs ensure lat/lng are submitted */}
+            <input type="hidden" {...register("latitude", { valueAsNumber: true })} />
+            <input type="hidden" {...register("longitude", { valueAsNumber: true })} />
+            <input type="hidden" {...register("addressCity")} />
+            <input type="hidden" {...register("addressPostal")} />
 
             <div className="flex justify-end gap-2 pt-4 border-t">
                 <Button variant="outline" type="button" onClick={onCancel}>
