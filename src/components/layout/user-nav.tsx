@@ -24,6 +24,10 @@ export function UserNav() {
     ? user.name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "U";
 
+  // Role-aware navigation — drivers must stay within /driver/*, parents within /parent/*
+  const profileHref = user?.role === "DRIVER" ? "/driver/profile" : user?.role === "PARENT" ? "/parent/profile" : "/profile";
+  const settingsHref = user?.role === "DRIVER" ? "/driver/settings" : user?.role === "PARENT" ? "/parent/settings" : "/settings";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -47,14 +51,14 @@ export function UserNav() {
 
         <DropdownMenuGroup>
           <DropdownMenuItem asChild>
-            <Link href="/profile" className="flex items-center gap-2 cursor-pointer">
+            <Link href={profileHref} className="flex items-center gap-2 cursor-pointer">
               <User className="h-4 w-4 text-muted-foreground" />
               Profile
               <DropdownMenuShortcut>⇧⌘P</DropdownMenuShortcut>
             </Link>
           </DropdownMenuItem>
           <DropdownMenuItem asChild>
-            <Link href="/settings" className="flex items-center gap-2 cursor-pointer">
+            <Link href={settingsHref} className="flex items-center gap-2 cursor-pointer">
               <Settings className="h-4 w-4 text-muted-foreground" />
               Settings
               <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
