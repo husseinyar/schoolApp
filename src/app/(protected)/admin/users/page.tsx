@@ -51,10 +51,10 @@ export default function UsersPage() {
     fetchData();
   }, [searchParams]);
 
-  // Handle Edit/Add param
+  // Handle Edit/Add param via URL
   useEffect(() => {
     const editId = searchParams.get("edit");
-    const action = searchParams.get("action");
+    const isNew = searchParams.get("new") === "true";
 
     if (editId) {
        fetch(`/api/users/${editId}`).then(res => res.json()).then(json => {
@@ -63,7 +63,7 @@ export default function UsersPage() {
                setIsOpen(true);
            }
        });
-    } else if (action === "new") {
+    } else if (isNew) {
         setEditUser(null);
         setIsOpen(true);
     } else {
@@ -97,11 +97,9 @@ export default function UsersPage() {
           });
 
           if (res.ok) {
-              setIsOpen(false);
-              setIsOpen(false);
               const params = new URLSearchParams(searchParams);
               params.delete("edit");
-              params.delete("action");
+              params.delete("new");
               router.replace(`/admin/users?${params.toString()}`);
               fetchData(); // Refresh list
           } else {
@@ -113,20 +111,21 @@ export default function UsersPage() {
   };
 
   const handleAddClick = () => {
-    setEditUser(null);
-    setIsOpen(true);
     const params = new URLSearchParams(searchParams);
     params.delete("edit");
-    params.set("action", "new");
-    router.replace(`/admin/users?${params.toString()}`);
+    params.set("new", "true");
+    router.push(`/admin/users?${params.toString()}`);
   };
 
   const handleCancel = () => {
-      setIsOpen(false);
       const params = new URLSearchParams(searchParams);
       params.delete("edit");
-      params.delete("action");
+      params.delete("new");
       router.replace(`/admin/users?${params.toString()}`);
+  };
+
+  const onOpenChange = (open: boolean) => {
+      if (!open) handleCancel();
   };
 
   return (
@@ -154,7 +153,7 @@ export default function UsersPage() {
         currentPage={page}
       />
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">
              <DialogHeader>
                  <DialogTitle>{editUser ? "Edit User" : t("users.add_user")}</DialogTitle>

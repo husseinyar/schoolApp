@@ -16,10 +16,16 @@ export async function GET() {
             include: {
                 route: {
                     select: {
+                        id: true,
                         name: true,
                         startTime: true,
                         monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
                         driver: { select: { name: true } },
+                        tripLogs: {
+                            where: { status: "ONGOING" },
+                            take: 1,
+                            select: { status: true },
+                        },
                     },
                 },
             },

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   GraduationCap, Bell, Bus, Shield, Loader2, ChevronRight,
-  CalendarX, Users, AlertTriangle, CheckCircle2, Clock
+  CalendarX, Users, AlertTriangle, CheckCircle2, Clock, Navigation
 } from "lucide-react";
 
 interface RouteInfo {
@@ -12,6 +12,7 @@ interface RouteInfo {
   startTime: string;
   monday: boolean; tuesday: boolean; wednesday: boolean; thursday: boolean; friday: boolean;
   driver: { name: string };
+  tripLogs: { status: string }[];
 }
 
 interface StudentSummary {
@@ -65,6 +66,9 @@ export default function ParentHomePage() {
 
   const todayKey = getTodayKey();
   const isWeekend = !todayKey;
+
+  const activeRoutes = data.students.filter(s => s.route?.tripLogs && s.route.tripLogs.length > 0);
+  const isAnyBusLive = activeRoutes.length > 0;
 
   const statCards = [
     {
@@ -125,6 +129,26 @@ export default function ParentHomePage() {
           </div>
         )}
 
+        {/* Live Trip Banner */}
+        {isAnyBusLive && (
+          <Link 
+            href="/parent/map"
+            className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl bg-emerald-600/20 border border-emerald-500/40 text-emerald-300 hover:bg-emerald-600/30 transition shadow-lg shadow-emerald-900/20"
+          >
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <Navigation className="w-6 h-6 animate-pulse" />
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full animate-ping" />
+              </div>
+              <div>
+                <p className="font-bold text-sm">Bus is LIVE</p>
+                <p className="text-xs text-emerald-400/80">Track your child's bus in real-time on the map</p>
+              </div>
+            </div>
+            <ChevronRight className="w-5 h-5 text-emerald-400" />
+          </Link>
+        )}
+
         {/* Stats Grid */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {statCards.map(({ label, value, sub, icon: Icon, color, iconColor, href }) => (
@@ -175,6 +199,10 @@ export default function ParentHomePage() {
                   {route ? (
                     isWeekend ? (
                       <span className="text-xs px-2.5 py-1 rounded-full bg-slate-700 text-slate-400 border border-slate-600">Weekend</span>
+                    ) : route.tripLogs.length > 0 ? (
+                      <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-600 text-white font-bold animate-pulse shadow-lg shadow-emerald-900/40">
+                        <Navigation className="w-3 h-3" /> LIVE
+                      </span>
                     ) : runsToday ? (
                       <span className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-emerald-600/20 text-emerald-300 border border-emerald-500/30">
                         <CheckCircle2 className="w-3 h-3" /> On Today
@@ -199,10 +227,10 @@ export default function ParentHomePage() {
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
+              { href: "/parent/map", label: "Live Bus Map", icon: Navigation, color: "text-indigo-400" },
               { href: "/parent/absences", label: "Report Absence", icon: CalendarX, color: "text-rose-400" },
               { href: "/parent/emergency-contacts", label: "Emergency Contacts", icon: Users, color: "text-emerald-400" },
               { href: "/parent/consents", label: "Manage Consents", icon: Shield, color: "text-blue-400" },
-              { href: "/parent/notifications", label: "View Notifications", icon: Bell, color: "text-amber-400" },
             ].map(({ href, label, icon: Icon, color }) => (
               <Link
                 key={href}

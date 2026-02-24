@@ -51,9 +51,11 @@ export default function SchoolsPage() {
     fetchData();
   }, [searchParams]);
 
-  // Handle Edit param
+  // Handle Modal state via URL
   useEffect(() => {
     const editId = searchParams.get("edit");
+    const isNew = searchParams.get("new") === "true";
+
     if (editId) {
        fetch(`/api/schools/${editId}`).then(res => res.json()).then(json => {
            if (json.success) {
@@ -61,6 +63,9 @@ export default function SchoolsPage() {
                setIsOpen(true);
            }
        });
+    } else if (isNew) {
+        setEditSchool(null);
+        setIsOpen(true);
     } else {
         setEditSchool(null);
         setIsOpen(false);
@@ -92,9 +97,9 @@ export default function SchoolsPage() {
           });
 
           if (res.ok) {
-              setIsOpen(false);
               const params = new URLSearchParams(searchParams);
               params.delete("edit");
+              params.delete("new");
               router.replace(`/admin/schools?${params.toString()}`);
               fetchData(); 
           } else {
@@ -106,18 +111,21 @@ export default function SchoolsPage() {
   };
 
   const handleAddClick = () => {
-    setEditSchool(null);
-    setIsOpen(true);
     const params = new URLSearchParams(searchParams);
     params.delete("edit");
-    router.replace(`/admin/schools?${params.toString()}`);
+    params.set("new", "true");
+    router.push(`/admin/schools?${params.toString()}`);
   };
 
   const handleCancel = () => {
-      setIsOpen(false);
       const params = new URLSearchParams(searchParams);
       params.delete("edit");
+      params.delete("new");
       router.replace(`/admin/schools?${params.toString()}`);
+  };
+
+  const onOpenChange = (open: boolean) => {
+      if (!open) handleCancel();
   };
 
   return (
@@ -145,7 +153,7 @@ export default function SchoolsPage() {
         currentPage={page}
       />
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">
             <DialogHeader>
                 <DialogTitle>{editSchool ? "Edit School" : t("schools.add_school")}</DialogTitle>

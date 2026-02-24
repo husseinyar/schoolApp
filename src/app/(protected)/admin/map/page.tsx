@@ -30,6 +30,9 @@ interface RouteData {
         latitude: number;
         longitude: number;
     };
+    driver: {
+        name: string;
+    };
     stops: {
         id: string;
         name: string;
@@ -37,6 +40,13 @@ interface RouteData {
         longitude: number;
         orderIndex: number;
         scheduledTime: string;
+    }[];
+    tripLogs: {
+        id: string;
+        status: string;
+        lastLatitude: number | null;
+        lastLongitude: number | null;
+        lastUpdatedAt: string | null;
     }[];
     _count: {
         students: number;
@@ -67,28 +77,28 @@ export default function GlobalMapPage() {
 
     useEffect(() => {
         fetchRoutes();
-        // Optional: Poll every 30 seconds for specific "live" updates if we had backend positions
-        // const interval = setInterval(fetchRoutes, 30000);
-        // return () => clearInterval(interval);
+        const interval = setInterval(fetchRoutes, 5000); // 5s polling
+        return () => clearInterval(interval);
     }, []);
 
     // Process map data
     const allMarkers: any[] = [];
     const allPolylines: any[] = [];
 
-    // Calculate center (average of all points or default to first school)
+    // Calculate center
     let centerLat = 0;
     let centerLng = 0;
     let pointCount = 0;
 
-    routes.forEach((route, index) => {
-        const color = ROUTE_COLORS[index % ROUTE_COLORS.length];
+    console.log(`[MAP-UI] Processing ${routes.length} routes...`);
 
+    routes.forEach((route, index) => {
         // School Marker
         allMarkers.push({
             position: [route.school.latitude, route.school.longitude],
             title: route.school.name,
             description: `School for route: ${route.name}`,
+            type: "school",
         });
         centerLat += route.school.latitude;
         centerLng += route.school.longitude;
@@ -111,16 +121,44 @@ export default function GlobalMapPage() {
             [route.school.latitude, route.school.longitude] as [number, number],
             ...route.stops.map(s => [s.latitude, s.longitude] as [number, number]),
         ];
-        // We can pass color if we update Map/LeafletMap to support per-polyline options
-        // For now, LeafletMap receives `polylines`. To support colors, we might need to refactor LeafletMap.tsx props.
-        // Assuming LeafletMap currently takes simple array of arrays. 
-        // We will just pass the points. *See note below about color*
         allPolylines.push(points);
+
+        // Add Bus Marker if there's an active trip
+        const activeTrip = route.tripLogs?.[0];
+        
+        // Flexible status check
+        const isTripActive = activeTrip && (
+            activeTrip.status === "ONGOING" || 
+            activeTrip.status === "TRIP_IN_PROGRESS" || 
+            activeTrip.status === "ACTIVE"
+        );
+
+        const hasPos = activeTrip && activeTrip.lastLatitude !== null && activeTrip.lastLongitude !== null;
+        
+        console.log(`[TRACE-UI] Route ${route.name}: IsActive=${isTripActive}, HasPos=${hasPos}, Status=${activeTrip?.status}, Pos=[${activeTrip?.lastLatitude}, ${activeTrip?.lastLongitude}]`);
+
+        if (activeTrip && isTripActive && hasPos) {
+            const lastUpdate = activeTrip.lastUpdatedAt ? new Date(activeTrip.lastUpdatedAt) : null;
+            const STALE_THRESHOLD = 5 * 60 * 1000; // 5 minutes
+            const isStale = lastUpdate ? (Date.now() - lastUpdate.getTime() > STALE_THRESHOLD) : true;
+            
+            const lastSeenText = lastUpdate 
+                ? `Last seen: ${lastUpdate.toLocaleTimeString()}`
+                : "Last seen: Unknown";
+
+            allMarkers.push({
+                position: [activeTrip.lastLatitude!, activeTrip.lastLongitude!],
+                title: `Bus: ${route.name}`,
+                description: `Status: ${activeTrip.status} | Driver: ${route.driver?.name || "Unknown"} | ${lastSeenText}`,
+                type: "bus",
+                stale: isStale, // Custom prop for LeafletMap
+            });
+        }
     });
 
     const center: [number, number] = pointCount > 0 
         ? [centerLat / pointCount, centerLng / pointCount] 
-        : [59.3293, 18.0686]; // Default to Stockholm
+        : [59.3293, 18.0686]; // Stockholm
 
     return (
         <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
@@ -188,7 +226,7 @@ export default function GlobalMapPage() {
                             </div>
                              <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg text-center">
                                 <div className="text-2xl font-bold text-green-600 dark:text-green-400">
-                                    {routes.reduce((acc, r) => acc + r._count.students, 0)}
+                                    {routes.reduce((acc, r) => acc + (r._count?.students || 0), 0)}
                                 </div>
                                 <div className="text-xs text-muted-foreground">Students</div>
                             </div>

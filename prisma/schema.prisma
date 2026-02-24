@@ -395,6 +395,11 @@ model TripLog {
   completedAt  DateTime?
   notes        String?
 
+  // Real-time tracking
+  lastLatitude  Float?
+  lastLongitude Float?
+  lastUpdatedAt DateTime?
+
   attendances  Attendance[]
 
   createdAt    DateTime   @default(now())

@@ -57,6 +57,12 @@ export const NAV_ITEMS: NavItem[] = [
         roles: ["ADMIN"],
     },
     {
+        title: "Students",
+        href: "/admin/students",
+        icon: GraduationCap,
+        roles: ["ADMIN"],
+    },
+    {
         title: "Live Map",
         href: "/admin/map",
         icon: Map,

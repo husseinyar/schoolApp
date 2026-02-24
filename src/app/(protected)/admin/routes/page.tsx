@@ -50,9 +50,11 @@ export default function RoutesPage() {
     fetchData();
   }, [searchParams]);
 
-  // Handle Edit param
+  // Handle Modal state via URL
   useEffect(() => {
     const editId = searchParams.get("edit");
+    const isNew = searchParams.get("new") === "true";
+
     if (editId) {
        fetch(`/api/routes/${editId}`).then(res => res.json()).then(json => {
            if (json.success) {
@@ -60,6 +62,9 @@ export default function RoutesPage() {
                setIsOpen(true);
            }
        });
+    } else if (isNew) {
+        setEditRoute(null);
+        setIsOpen(true);
     } else {
         setEditRoute(null);
         setIsOpen(false);
@@ -78,9 +83,9 @@ export default function RoutesPage() {
           });
 
           if (res.ok) {
-              setIsOpen(false);
               const params = new URLSearchParams(searchParams);
               params.delete("edit");
+              params.delete("new");
               router.replace(`/admin/routes?${params.toString()}`);
               fetchData(); 
           } else {
@@ -93,18 +98,21 @@ export default function RoutesPage() {
   };
 
   const handleAddClick = () => {
-    setEditRoute(null);
-    setIsOpen(true);
     const params = new URLSearchParams(searchParams);
     params.delete("edit");
-    router.replace(`/admin/routes?${params.toString()}`);
+    params.set("new", "true");
+    router.push(`/admin/routes?${params.toString()}`);
   };
 
   const handleCancel = () => {
-      setIsOpen(false);
       const params = new URLSearchParams(searchParams);
       params.delete("edit");
+      params.delete("new");
       router.replace(`/admin/routes?${params.toString()}`);
+  };
+
+  const onOpenChange = (open: boolean) => {
+      if (!open) handleCancel();
   };
 
   return (
@@ -128,7 +136,7 @@ export default function RoutesPage() {
         currentPage={page}
       />
 
-      <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[700px]">
             <DialogHeader>
                 <DialogTitle>{editRoute ? "Edit Route" : t("routes.add_route")}</DialogTitle>

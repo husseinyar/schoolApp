@@ -31,6 +31,8 @@ interface LeafletMapProps {
         position: [number, number];
         title?: string;
         description?: string;
+        type?: "bus" | "school" | "default";
+        stale?: boolean;
     }[];
     polylines?: [number, number][][];
     className?: string;
@@ -68,18 +70,43 @@ export default function LeafletMap({
             
             <MapController center={center} zoom={zoom} />
             
-            {markers.map((marker, index) => (
-                <Marker key={index} position={marker.position}>
-                    {(marker.title || marker.description) && (
-                        <Popup>
-                            <div className="text-sm">
-                                {marker.title && <h3 className="font-bold">{marker.title}</h3>}
-                                {marker.description && <p>{marker.description}</p>}
-                            </div>
-                        </Popup>
-                    )}
-                </Marker>
-            ))}
+            {markers.map((marker, index) => {
+                let icon: any = DefaultIcon;
+                
+                if (marker.type === "bus") {
+                    const isStale = marker.stale;
+                    icon = L.divIcon({
+                        className: `custom-bus-icon ${isStale ? "stale-marker" : ""}`,
+                        html: `<div class="${isStale ? "bg-slate-400 opacity-60" : "bg-blue-600 animate-bounce-slow animate-pulse-ripple"} w-8 h-8 rounded-full flex items-center justify-center border-2 border-white shadow-xl">
+                                <span class="text-white text-xs">${isStale ? "⏳" : "🚌"}</span>
+                               </div>`,
+                        iconSize: [32, 32],
+                        iconAnchor: [16, 16],
+                    });
+                } else if (marker.type === "school") {
+                     icon = L.divIcon({
+                        className: "custom-school-icon",
+                        html: `<div class="bg-rose-600 w-6 h-6 rounded-full flex items-center justify-center border-2 border-white shadow-md">
+                                <span class="text-white text-[10px]">🏫</span>
+                               </div>`,
+                        iconSize: [24, 24],
+                        iconAnchor: [12, 12],
+                    });
+                }
+
+                return (
+                    <Marker key={index} position={marker.position} icon={icon as any}>
+                        {(marker.title || marker.description) && (
+                            <Popup>
+                                <div className="text-sm">
+                                    {marker.title && <h3 className="font-bold">{marker.title}</h3>}
+                                    {marker.description && <p>{marker.description}</p>}
+                                </div>
+                            </Popup>
+                        )}
+                    </Marker>
+                );
+            })}
 
             {polylines.map((polyline, index) => (
                 <Polyline key={index} positions={polyline} color="blue" />

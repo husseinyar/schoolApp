@@ -17,6 +17,8 @@ interface MapProps {
         position: [number, number];
         title?: string;
         description?: string;
+        type?: "bus" | "school" | "default";
+        stale?: boolean;
     }[];
     polylines?: [number, number][][];
     className?: string;
@@ -28,7 +30,7 @@ export function Map({ center, zoom = 13, markers, polylines, className }: MapPro
             <LeafletMap 
                 center={center} 
                 zoom={zoom} 
-                markers={markers} 
+                markers={markers as any} 
                 polylines={polylines} 
             />
         </div>

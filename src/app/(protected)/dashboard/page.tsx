@@ -6,6 +6,7 @@ import {
   Users, Bus, School, UserCheck, Bell, CalendarX,
   ClipboardList, ChevronRight, Activity, MapPin, TrendingUp
 } from "lucide-react";
+import { OperationsControl } from "@/components/dashboard/OperationsControl";
 
 const STATUS_COLOR: Record<string, string> = {
   IDLE:               "bg-slate-600/20 text-slate-400 border-slate-600/40",
@@ -138,6 +139,9 @@ export default async function DashboardPage() {
                 ))}
               </div>
             </div>
+
+            {/* Operations Control (Admin Only) */}
+            {isAdmin && <OperationsControl />}
 
             {/* Recent Activity */}
             <div className="bg-slate-900/60 backdrop-blur border border-slate-700/50 rounded-2xl p-5">

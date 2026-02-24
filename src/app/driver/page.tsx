@@ -33,15 +33,90 @@ export default function DriverHomePage() {
   const [starting, setStarting] = useState(false);
   const [completing, setCompleting] = useState(false);
 
+  const [gpsError, setGpsError] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
+  const [lastSentTime, setLastSentTime] = useState<number>(0);
+
   async function load() {
     setLoading(true);
-    const res = await fetch("/api/driver/dashboard");
-    const d = await res.json();
-    setData(d);
+    try {
+      const res = await fetch("/api/driver/dashboard");
+      const d = await res.json();
+      setData(d);
+      setIsOffline(false);
+    } catch (err) {
+      setIsOffline(true);
+    }
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load();
+    const handleOnline = () => setIsOffline(false);
+    const handleOffline = () => setIsOffline(true);
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
+  // Location tracking effect with throttling and error handling
+  useEffect(() => {
+    if (!data?.todayTrip || data.todayTrip.status !== "ONGOING") {
+      setGpsError(null);
+      return;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      async (pos) => {
+        setGpsError(null);
+        const { latitude, longitude } = pos.coords;
+        const now = Date.now();
+
+        // Throttle updates (5 seconds)
+        if (now - lastSentTime < 5000) {
+          console.log("[TRACE-UI] Skipping location update (throttled)");
+          return;
+        }
+
+        try {
+          const res = await fetch("/api/driver/location", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              tripId: data.todayTrip?.id,
+              latitude,
+              longitude,
+            }),
+          });
+          
+          if (!res.ok) {
+            const err = await res.json();
+            console.error("Location reporting rejected:", err);
+          } else {
+            setLastSentTime(now);
+            setIsOffline(false);
+          }
+        } catch (err) {
+          console.error("Failed to send location - network likely offline", err);
+          setIsOffline(true);
+        }
+      },
+      (err) => {
+        let msg = "GPS error";
+        if (err.code === 1) msg = "Please enable Location permissions.";
+        else if (err.code === 2) msg = "GPS position unavailable.";
+        else if (err.code === 3) msg = "GPS timeout.";
+        setGpsError(msg);
+        console.error("Geolocation error", err);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, [data?.todayTrip?.id, data?.todayTrip?.status, lastSentTime]);
 
   async function startTrip() {
     setStarting(true);
@@ -70,6 +145,28 @@ export default function DriverHomePage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6">
       <div className="max-w-4xl mx-auto space-y-8">
+
+        {/* Status Banners */}
+        <div className="space-y-3">
+          {gpsError && (
+            <div className="bg-rose-900/40 border border-rose-500/50 rounded-xl p-4 flex items-center gap-3 text-rose-200 animate-pulse">
+              <AlertTriangle className="w-5 h-5 shrink-0" />
+              <div className="text-sm">
+                <p className="font-semibold">GPS Error</p>
+                <p className="opacity-80">{gpsError}</p>
+              </div>
+            </div>
+          )}
+          {isOffline && (
+            <div className="bg-slate-900/80 border border-slate-600 rounded-xl p-4 flex items-center gap-3 text-slate-300">
+              <Loader2 className="w-5 h-5 animate-spin shrink-0 text-slate-500" />
+              <div className="text-sm">
+                <p className="font-semibold">Network Offline</p>
+                <p className="opacity-80">Check your internet connection. Retrying updates...</p>
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Header */}
         <div>

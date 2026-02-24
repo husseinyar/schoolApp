@@ -83,9 +83,11 @@ export default function StudentsPage() {
     fetchData();
   }, [searchParams]);
 
-  // Handle edit param from URL
+  // Handle edit/new param from URL
   useEffect(() => {
     const editId = searchParams.get("edit");
+    const isNew = searchParams.get("new") === "true";
+
     if (editId) {
       fetch(`/api/students/${editId}`)
         .then((r) => r.json())
@@ -95,8 +97,12 @@ export default function StudentsPage() {
             setIsOpen(true);
           }
         });
+    } else if (isNew) {
+      setEditStudent(null);
+      setIsOpen(true);
     } else {
       setEditStudent(null);
+      setIsOpen(false);
     }
   }, [searchParams]);
 
@@ -116,18 +122,16 @@ export default function StudentsPage() {
   };
 
   const handleAddClick = () => {
-    setEditStudent(null);
-    setIsOpen(true);
     const params = new URLSearchParams(searchParams);
     params.delete("edit");
-    router.replace(`/admin/students?${params.toString()}`);
+    params.set("new", "true");
+    router.push(`/admin/students?${params.toString()}`);
   };
 
   const handleCancel = () => {
-    setIsOpen(false);
-    setEditStudent(null);
     const params = new URLSearchParams(searchParams);
     params.delete("edit");
+    params.delete("new");
     router.replace(`/admin/students?${params.toString()}`);
   };
 
@@ -146,10 +150,9 @@ export default function StudentsPage() {
       const json = await res.json();
 
       if (res.ok && json.success) {
-        setIsOpen(false);
-        setEditStudent(null);
         const params = new URLSearchParams(searchParams);
         params.delete("edit");
+        params.delete("new");
         router.replace(`/admin/students?${params.toString()}`);
         fetchData();
       } else {
