@@ -164,7 +164,7 @@ export default function ProfilePage() {
             {/* ── CTA ── */}
             <div className="flex justify-end">
                 <Button asChild className="gap-2">
-                    <Link href=" ../settings">
+                    <Link href=" ./settings">
                         <Settings className="h-4 w-4" />
                         Edit in Settings
                     </Link>

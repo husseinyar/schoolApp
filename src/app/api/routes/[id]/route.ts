@@ -78,9 +78,27 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             data: data,
             include: {
                 school: true,
-                driver: { select: { name: true } }
+                driver: { select: { id: true, name: true } }
             }
         });
+
+        // Notify Driver of changes
+        if (updatedRoute.driverId) {
+            try {
+                const message = data.driverId
+                    ? `You have been assigned to route: ${updatedRoute.name}`
+                    : `Route "${updatedRoute.name}" details have been updated by admin.`;
+
+                await sendToUser(
+                    updatedRoute.driverId,
+                    "Route Update",
+                    message,
+                    auth.user!.id
+                );
+            } catch (notifyErr) {
+                console.error("Failed to notify driver:", notifyErr);
+            }
+        }
 
         return successResponse(updatedRoute);
     });

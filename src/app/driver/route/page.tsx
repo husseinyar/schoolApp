@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { MapPin, Clock, Bus, Users, Loader2, CheckCircle2, Circle, School } from "lucide-react";
+import { MapPin, Clock, Bus, Users, Loader2, CheckCircle2, Circle, School, Navigation2 } from "lucide-react";
 
 interface Stop {
   id: string; name: string; address: string; scheduledTime: string; orderIndex: number;
@@ -86,12 +86,24 @@ export default function MyRoutePage() {
                   <div className="w-3 h-3 rounded-full bg-cyan-500 border-2 border-cyan-400 mt-0.5 flex-shrink-0" />
                   {!isLast && <div className="w-0.5 bg-slate-700 flex-1 my-1" />}
                 </div>
-                <div className="pb-4">
-                  <p className="text-white text-sm font-medium">{stop.name}</p>
-                  <p className="text-slate-500 text-xs">{stop.address}</p>
-                  <p className="text-cyan-400 text-xs flex items-center gap-1 mt-0.5">
-                    <Clock className="w-3 h-3" /> {stop.scheduledTime}
-                  </p>
+                <div className="pb-4 flex-1">
+                  <div className="flex justify-between items-start gap-4">
+                    <div>
+                      <p className="text-white text-sm font-medium">{stop.name}</p>
+                      <p className="text-slate-500 text-xs">{stop.address}</p>
+                      <p className="text-cyan-400 text-xs flex items-center gap-1 mt-0.5">
+                        <Clock className="w-3 h-3" /> {stop.scheduledTime}
+                      </p>
+                    </div>
+                    <a
+                      href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(stop.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="p-2 rounded-xl bg-cyan-600/20 border border-cyan-500/30 text-cyan-400 hover:bg-cyan-600 hover:text-white transition shadow-lg shadow-cyan-900/10"
+                    >
+                      <Navigation2 className="w-4 h-4" />
+                    </a>
+                  </div>
                 </div>
               </div>
             );
@@ -99,9 +111,19 @@ export default function MyRoutePage() {
           {/* School destination */}
           <div className="flex gap-3">
             <div className="w-4 h-4 rounded-full bg-emerald-500 border-2 border-emerald-400 mt-0.5 flex-shrink-0" />
-            <div>
-              <p className="text-emerald-300 text-sm font-medium">{route.school.name}</p>
-              <p className="text-slate-500 text-xs">{route.school.addressCity} — Destination</p>
+            <div className="flex-1 flex justify-between items-start gap-4">
+              <div>
+                <p className="text-emerald-300 text-sm font-medium">{route.school.name}</p>
+                <p className="text-slate-500 text-xs">{route.school.addressStreet}, {route.school.addressCity} — Destination</p>
+              </div>
+              <a
+                href={`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(`${route.school.addressStreet}, ${route.school.addressCity}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="p-2 rounded-xl bg-emerald-600/20 border border-emerald-500/30 text-emerald-300 hover:bg-emerald-600 hover:text-white transition shadow-lg shadow-emerald-900/10"
+              >
+                <Navigation2 className="w-4 h-4" />
+              </a>
             </div>
           </div>
         </div>

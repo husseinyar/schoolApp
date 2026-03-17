@@ -1,6 +1,7 @@
 "use client";
 
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { useState, useEffect } from "react";
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./sidebar";
@@ -8,6 +9,12 @@ import { UserNav } from "./user-nav";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 export function Header() {
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <header className="sticky top-0 z-30 h-16 w-full">
       <div
@@ -31,8 +38,13 @@ export function Header() {
                   bg-white dark:bg-slate-900
                   hover:bg-slate-50 dark:hover:bg-slate-800
                 "
+                suppressHydrationWarning
               >
-                <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+                {mounted ? (
+                  <Menu className="h-5 w-5 text-slate-700 dark:text-slate-200" />
+                ) : (
+                  <div className="h-5 w-5" />
+                )}
                 <span className="sr-only">Toggle Menu</span>
               </Button>
             </SheetTrigger>
@@ -41,6 +53,9 @@ export function Header() {
               side="left"
               className="p-0 w-72 border-r border-slate-200 dark:border-slate-800"
             >
+              <SheetHeader className="sr-only">
+                <SheetTitle>Navigation Menu</SheetTitle>
+              </SheetHeader>
               <Sidebar className="border-none w-full" />
             </SheetContent>
           </Sheet>

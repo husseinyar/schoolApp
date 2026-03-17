@@ -14,7 +14,8 @@ import {
     CalendarX,
     Phone,
     ClipboardList,
-    MapPin
+    MapPin,
+    MessageSquare
 } from "lucide-react";
 
 export interface NavItem {
@@ -30,7 +31,13 @@ export const NAV_ITEMS: NavItem[] = [
         title: "Dashboard",
         href: "/dashboard",
         icon: LayoutDashboard,
-        roles: ["ADMIN", "DRIVER", "PARENT", "STUDENT"],
+        roles: ["ADMIN", "PARENT", "STUDENT"],
+    },
+    {
+        title: "Messages",
+        href: "/admin/messages",
+        icon: MessageSquare,
+        roles: ["ADMIN"],
     },
     {
         title: "Users",
@@ -48,7 +55,7 @@ export const NAV_ITEMS: NavItem[] = [
         title: "Routes",
         href: "/admin/routes",
         icon: Bus,
-        roles: ["ADMIN", "DRIVER"],
+        roles: ["ADMIN"],
     },
     {
         title: "Audit Logs",
@@ -66,7 +73,7 @@ export const NAV_ITEMS: NavItem[] = [
         title: "Live Map",
         href: "/admin/map",
         icon: Map,
-        roles: ["ADMIN", "DRIVER"],
+        roles: ["ADMIN"],
     },
     {
         title: "Notifications",
@@ -103,6 +110,18 @@ export const NAV_ITEMS: NavItem[] = [
         title: "Absences",
         href: "/driver/absences",
         icon: CalendarX,
+        roles: ["DRIVER"],
+    },
+    {
+        title: "Messages",
+        href: "/driver/messages",
+        icon: MessageSquare,
+        roles: ["DRIVER"],
+    },
+    {
+        title: "Notifications",
+        href: "/driver/notifications",
+        icon: Bell,
         roles: ["DRIVER"],
     },
     {
@@ -143,9 +162,21 @@ export const NAV_ITEMS: NavItem[] = [
         roles: ["PARENT"],
     },
     {
+        title: "Messages",
+        href: "/parent/messages",
+        icon: MessageSquare,
+        roles: ["PARENT"],
+    },
+    {
         title: "Notifications",
         href: "/parent/notifications",
         icon: Bell,
+        roles: ["PARENT"],
+    },
+    {
+        title: "Live Map",
+        href: "/parent/map",
+        icon: Map,
         roles: ["PARENT"],
     },
 ];

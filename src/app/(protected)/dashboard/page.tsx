@@ -4,7 +4,7 @@ import { getDashboardStats } from "@/lib/dashboard-service";
 import Link from "next/link";
 import {
   Users, Bus, School, UserCheck, Bell, CalendarX,
-  ClipboardList, ChevronRight, Activity, MapPin, TrendingUp
+  ClipboardList, ChevronRight, Activity, MapPin, TrendingUp, MessageSquare
 } from "lucide-react";
 import { OperationsControl } from "@/components/dashboard/OperationsControl";
 
@@ -127,6 +127,7 @@ export default async function DashboardPage() {
                   { href: "/admin/users",          label: "Users",         icon: UserCheck,   color: "text-violet-400"  },
                   { href: "/admin/schools",        label: "Schools",       icon: School,      color: "text-emerald-400" },
                   { href: "/admin/map",            label: "Live Map",      icon: MapPin,      color: "text-rose-400"    },
+                  { href: "/admin/messages",       label: "Messages",      icon: MessageSquare, color: "text-indigo-400"  },
                 ].map(({ href, label, icon: Icon, color }) => (
                   <Link
                     key={href}

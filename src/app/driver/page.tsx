@@ -6,6 +6,7 @@ import {
   Bus, Users, CalendarX, CheckCircle2, Clock, Loader2,
   PlayCircle, StopCircle, MapPin, AlertTriangle, TrendingUp
 } from "lucide-react";
+import { IncidentForm } from "@/components/driver/IncidentForm";
 
 interface Stop { id: string; name: string; scheduledTime: string; orderIndex: number; }
 interface Route {
@@ -36,6 +37,8 @@ export default function DriverHomePage() {
   const [gpsError, setGpsError] = useState<string | null>(null);
   const [isOffline, setIsOffline] = useState(false);
   const [lastSentTime, setLastSentTime] = useState<number>(0);
+
+  const [showIncidentForm, setShowIncidentForm] = useState(false);
 
   async function load() {
     setLoading(true);

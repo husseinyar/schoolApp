@@ -47,6 +47,11 @@ model User {
   absences         Absence[]    @relation("ParentAbsences")
   tripLogs         TripLog[]    @relation("DriverTripLogs")
   
+  // New: Incident & Messaging
+  incidents        Incident[]
+  conversations    Conversation[] @relation("UserConversations")
+  messages         Message[]
+  
   @@index([schoolId])
   @@index([email])
 }
@@ -401,6 +406,9 @@ model TripLog {
   lastUpdatedAt DateTime?
 
   attendances  Attendance[]
+  incidents    Incident[]
+
+  alertedStudentIds String[] @default([])
 
   createdAt    DateTime   @default(now())
 
@@ -432,4 +440,70 @@ model Attendance {
   @@unique([tripLogId, studentId])
   @@index([tripLogId])
   @@index([studentId])
+}
+
+// ── Incidents ──────────────────────────────────────────────
+enum IncidentType {
+  ACCIDENT
+  TRAFFIC
+  VEHICLE_ISSUE
+  MEDICAL
+  OTHER
+}
+
+enum IncidentSeverity {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+model Incident {
+  id          String           @id @default(cuid())
+  
+  tripLogId   String?
+  tripLog     TripLog?         @relation(fields: [tripLogId], references: [id])
+  
+  reportedById String
+  reportedBy   User            @relation(fields: [reportedById], references: [id])
+  
+  type         IncidentType
+  severity     IncidentSeverity
+  description  String
+  
+  resolvedAt   DateTime?
+  resolvedById String? // ID of the admin who resolved it
+  
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([tripLogId])
+  @@index([reportedById])
+}
+
+// ── Messaging ──────────────────────────────────────────────
+model Conversation {
+  id            String    @id @default(cuid())
+  lastMessageAt DateTime  @default(now())
+  createdAt     DateTime  @default(now())
+  
+  participants  User[]    @relation("UserConversations")
+  messages      Message[]
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  
+  senderId       String
+  sender         User         @relation(fields: [senderId], references: [id])
+  
+  body           String
+  readAt         DateTime?
+  
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId])
+  @@index([senderId])
 }

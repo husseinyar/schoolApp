@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   GraduationCap, Bell, Bus, Shield, Loader2, ChevronRight,
-  CalendarX, Users, AlertTriangle, CheckCircle2, Clock, Navigation
+  CalendarX, Users, AlertTriangle, CheckCircle2, Clock, Navigation, MessageSquare
 } from "lucide-react";
 
 interface RouteInfo {
@@ -228,9 +228,9 @@ export default function ParentHomePage() {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             {[
               { href: "/parent/map", label: "Live Bus Map", icon: Navigation, color: "text-indigo-400" },
+              { href: "/parent/messages", label: "Chat with Admin", icon: MessageSquare, color: "text-blue-400" },
               { href: "/parent/absences", label: "Report Absence", icon: CalendarX, color: "text-rose-400" },
               { href: "/parent/emergency-contacts", label: "Emergency Contacts", icon: Users, color: "text-emerald-400" },
-              { href: "/parent/consents", label: "Manage Consents", icon: Shield, color: "text-blue-400" },
             ].map(({ href, label, icon: Icon, color }) => (
               <Link
                 key={href}
