@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormGrid, FormSection } from "@/components/ui/form-layout";
-import { Role } from "@prisma/client";
+import { Role } from "@/lib/types";
 import { useState } from "react";
 
 const userSchema = z.object({
