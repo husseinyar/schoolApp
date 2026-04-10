@@ -16,7 +16,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { FormGrid, FormSection } from "@/components/ui/form-layout";
-import { Role } from "@/lib/types";
+import { Role } from "@/lib/types"; // Import from your types file, NOT @prisma/client
 import { useState } from "react";
 
 const userSchema = z.object({
