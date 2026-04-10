@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { getFirebaseMessaging } from "@/lib/firebase/firebase-client";
 import { getToken, onMessage } from "firebase/messaging";
+import { createAuditLog } from "@/lib/audit";
 
 export function NotificationProvider() {
   const { data: session, status } = useSession();
@@ -12,6 +13,7 @@ export function NotificationProvider() {
     if (status !== "authenticated" || !session) return;
 
     async function registerToken() {
+      console.log("[FCM] Registering notification token...", process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY );
       const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
       if (!vapidKey) {
         console.warn("[FCM] NEXT_PUBLIC_FIREBASE_VAPID_KEY is not set.");

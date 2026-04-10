@@ -4,6 +4,7 @@ import { apiHandler, successResponse, ApiError } from "@/lib/api-utils";
 import { prisma } from "@/lib/prisma";
 import { ensureRole } from "@/lib/api-auth";
 import { z } from "zod";
+import { sendToUser } from "@/lib/firebase/notification-service";
 
 const updateRouteSchema = z.object({
     name: z.string().min(1).optional(),

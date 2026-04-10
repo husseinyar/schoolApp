@@ -7,12 +7,12 @@ importScripts("https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging-com
 // NOTE: These values are intentionally hard-coded here because service workers
 // cannot access Next.js environment variables at runtime.
 firebase.initializeApp({
-  apiKey: "AIzaSyBpUB4o66sjhS7x1OFQWtOz6bMHVndycfw",
-  authDomain: "cv-craft-h1bob.firebaseapp.com",
-  projectId: "cv-craft-h1bob",
-  storageBucket: "cv-craft-h1bob.firebasestorage.app",
-  messagingSenderId: "398208259764",
-  appId: "1:398208259764:web:a52be8b7202b474e0e69e1",
+  apiKey: "AIzaSyDYR9aQPG1fcPbf7mZ-HTFuLgAUS4BgerU",
+  authDomain: "fritidshub.firebaseapp.com",
+  projectId: "fritidshub",
+  storageBucket: "fritidshub.firebasestorage.app",
+  messagingSenderId: "456984656306",
+  appId: "1:456984656306:web:5c6330d70c41b770034cab",
 });
 
 const messaging = firebase.messaging();
