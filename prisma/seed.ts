@@ -9,29 +9,43 @@ const adapter = new PrismaPg({
 const prisma = new PrismaClient({ adapter });
 
 async function main() {
-  console.log("🌱 Seeding database…");
+  console.log("🌱 Cleaning database...");
+  // Clear existing data to avoid unique constraint errors during re-seeding
+  await prisma.notification.deleteMany();
+  await prisma.consent.deleteMany();
+  await prisma.emergencyContact.deleteMany();
+  await prisma.student.deleteMany();
+  await prisma.stop.deleteMany();
+  await prisma.route.deleteMany();
+  await prisma.user.deleteMany();
+  await prisma.school.deleteMany();
+
+  console.log("🌱 Seeding database with real Stockholm data...");
 
   // ── School ──────────────────────────────────────────────────
   const school = await prisma.school.create({
     data: {
-      name: "Lincoln Elementary School",
-      addressStreet: "Storgatan 1",
+      name: "Lincoln Academy Stockholm",
+      addressStreet: "Sveavägen 73",
       addressCity: "Stockholm",
-      addressPostal: "123 45",
-      contactEmail: "info@lincoln.se",
-      contactPhone: "+46 8 123 456",
-      latitude: 59.3293,
-      longitude: 18.0686,
+      addressPostal: "113 50",
+      contactEmail: "admin@lincolnacademy.se",
+      contactPhone: "+46 8 555 123 45",
+      latitude: 59.3432,
+      longitude: 18.0558,
       radiusKm: 15,
     },
   });
-  console.log("✅ School:", school.name);
 
   // ── Users ────────────────────────────────────────────────────
+  const hashedAdmin = await bcrypt.hash("Admin123!", 10);
+  const hashedDriver = await bcrypt.hash("Driver123!", 10);
+  const hashedParent = await bcrypt.hash("Parent123!", 10);
+
   const admin = await prisma.user.create({
     data: {
       email: "admin@lincoln.se",
-      passwordHash: await bcrypt.hash("Admin123!", 10),
+      passwordHash: hashedAdmin,
       name: "Sarah Johnson",
       phone: "+46 70 123 4567",
       role: Role.ADMIN,
@@ -39,12 +53,11 @@ async function main() {
       emailVerified: new Date(),
     },
   });
-  console.log("✅ Admin:", admin.email);
 
   const driver1 = await prisma.user.create({
     data: {
       email: "mike@lincoln.se",
-      passwordHash: await bcrypt.hash("Driver123!", 10),
+      passwordHash: hashedDriver,
       name: "Mike Wilson",
       phone: "+46 70 234 5678",
       role: Role.DRIVER,
@@ -52,12 +65,11 @@ async function main() {
       emailVerified: new Date(),
     },
   });
-  console.log("✅ Driver 1:", driver1.email);
 
   const driver2 = await prisma.user.create({
     data: {
       email: "anna@lincoln.se",
-      passwordHash: await bcrypt.hash("Driver123!", 10),
+      passwordHash: hashedDriver,
       name: "Anna Bergström",
       phone: "+46 70 987 6543",
       role: Role.DRIVER,
@@ -65,12 +77,11 @@ async function main() {
       emailVerified: new Date(),
     },
   });
-  console.log("✅ Driver 2:", driver2.email);
 
   const parent1 = await prisma.user.create({
     data: {
       email: "john.doe@example.com",
-      passwordHash: await bcrypt.hash("Parent123!", 10),
+      passwordHash: hashedParent,
       name: "John Doe",
       phone: "+46 70 345 6789",
       role: Role.PARENT,
@@ -78,12 +89,11 @@ async function main() {
       emailVerified: new Date(),
     },
   });
-  console.log("✅ Parent 1:", parent1.email);
 
   const parent2 = await prisma.user.create({
     data: {
       email: "maria.svensson@example.com",
-      passwordHash: await bcrypt.hash("Parent123!", 10),
+      passwordHash: hashedParent,
       name: "Maria Svensson",
       phone: "+46 70 456 7890",
       role: Role.PARENT,
@@ -91,179 +101,146 @@ async function main() {
       emailVerified: new Date(),
     },
   });
-  console.log("✅ Parent 2:", parent2.email);
 
-  // ── Route A (Mike's route — North) ──────────────────────────
+  // ── Route A (Solna/Vasastan Line) ──────────────────────────
   const routeA = await prisma.route.create({
     data: {
-      name: "Route A – North Stockholm",
+      name: "Route A – North/Solna",
       schoolId: school.id,
       driverId: driver1.id,
       capacity: 40,
       currentStudents: 0,
-      startTime: "07:00",
+      startTime: "07:10",
+      endTime: "08:15",
+      monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
+      status: RouteStatus.IDLE,
+      stops: {
+        create: [
+          { name: "Solna Centrum", address: "Solnaplan 2, Solna", latitude: 59.3601, longitude: 17.9991, scheduledTime: "07:15", orderIndex: 0 },
+          { name: "Hagastaden", address: "Norra Stationsgatan 69, Stockholm", latitude: 59.3475, longitude: 18.0345, scheduledTime: "07:35", orderIndex: 1 },
+          { name: "Odenplan", address: "Karlbergsvägen 24, Stockholm", latitude: 59.3430, longitude: 18.0498, scheduledTime: "07:50", orderIndex: 2 },
+        ],
+      },
+    },
+  });
+
+  // ── Route B (Södermalm/City Line) ──────────────────────────
+  const routeB = await prisma.route.create({
+    data: {
+      name: "Route B – South/Södermalm",
+      schoolId: school.id,
+      driverId: driver2.id,
+      capacity: 35,
+      currentStudents: 0,
+      startTime: "07:20",
       endTime: "08:30",
       monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
       status: RouteStatus.IDLE,
       stops: {
         create: [
-          { name: "Oak & Maple Corner", address: "Ekgatan 5, Solna", latitude: 59.3600, longitude: 18.0050, scheduledTime: "07:10", orderIndex: 0 },
-          { name: "Pine Street Market", address: "Tallvägen 12, Solna", latitude: 59.3480, longitude: 18.0200, scheduledTime: "07:20", orderIndex: 1 },
-          { name: "Birch Park Entrance", address: "Björkparken 3, Stockholm", latitude: 59.3400, longitude: 18.0400, scheduledTime: "07:30", orderIndex: 2 },
-          { name: "Church Square North", address: "Kyrkotorget 1, Stockholm", latitude: 59.3330, longitude: 18.0550, scheduledTime: "07:42", orderIndex: 3 },
-          { name: "Central Library Stop", address: "Sveavägen 73, Stockholm", latitude: 59.3293, longitude: 18.0600, scheduledTime: "07:55", orderIndex: 4 },
+          { name: "Medborgarplatsen", address: "Folkungagatan 44, Stockholm", latitude: 59.3145, longitude: 18.0742, scheduledTime: "07:30", orderIndex: 0 },
+          { name: "Slussen", address: "Katarinavägen 15, Stockholm", latitude: 59.3194, longitude: 18.0744, scheduledTime: "07:45", orderIndex: 1 },
+          { name: "Kungsträdgården", address: "Hamngatan 2, Stockholm", latitude: 59.3324, longitude: 18.0734, scheduledTime: "08:05", orderIndex: 2 },
         ],
       },
     },
   });
-  console.log("✅ Route A:", routeA.name);
 
-  // ── Route B (Anna's route — South) ──────────────────────────
-  const routeB = await prisma.route.create({
+  // ── Students ───────────────────────────────────────────────
+  const emma = await prisma.student.create({
     data: {
-      name: "Route B – South Stockholm",
+      name: "Emma Doe",
+      studentCode: "STU-1001",
+      dateOfBirth: new Date("2015-05-12"),
+      grade: 3,
+      addressStreet: "Storgatan 12",
+      addressPostal: "171 63",
+      addressCity: "Solna",
+      latitude: 59.3595, longitude: 18.0010,
       schoolId: school.id,
-      driverId: driver2.id,
-      capacity: 35,
-      currentStudents: 0,
-      startTime: "07:15",
-      endTime: "08:45",
-      monday: true, tuesday: true, wednesday: true, thursday: true, friday: true,
-      status: RouteStatus.IDLE,
-      stops: {
-        create: [
-          { name: "South Gate Plaza", address: "Södergatans Torg, Stockholm", latitude: 59.3100, longitude: 18.0600, scheduledTime: "07:25", orderIndex: 0 },
-          { name: "Riverside Dock", address: "Strandvägen 45, Stockholm", latitude: 59.3150, longitude: 18.0650, scheduledTime: "07:35", orderIndex: 1 },
-          { name: "Gamla Stan Metro", address: "Gamla Stan T-bana, Stockholm", latitude: 59.3230, longitude: 18.0720, scheduledTime: "07:48", orderIndex: 2 },
-        ],
-      },
+      parentId: parent1.id,
+      routeId: routeA.id,
+      status: StudentStatus.ACTIVE,
     },
   });
-  console.log("✅ Route B:", routeB.name);
 
-  // ── Students (Parent 1 — John Doe's kids on Route A) ────────
-  const [emma, oliver] = await Promise.all([
-    prisma.student.create({
-      data: {
-        name: "Emma Doe",
-        studentCode: "STU-00001",
-        dateOfBirth: new Date("2014-03-15"),
-        grade: 3,
-        addressStreet: "Ekgatan 7",
-        addressPostal: "171 54",
-        addressCity: "Solna",
-        latitude: 59.3600,
-        longitude: 18.0050,
-        schoolId: school.id,
-        parentId: parent1.id,
-        routeId: routeA.id,
-        status: StudentStatus.ACTIVE,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        name: "Oliver Doe",
-        studentCode: "STU-00002",
-        dateOfBirth: new Date("2012-07-22"),
-        grade: 5,
-        addressStreet: "Ekgatan 7",
-        addressPostal: "171 54",
-        addressCity: "Solna",
-        latitude: 59.3600,
-        longitude: 18.0050,
-        schoolId: school.id,
-        parentId: parent1.id,
-        routeId: routeA.id,
-        status: StudentStatus.ACTIVE,
-      },
-    }),
-  ]);
+  const oliver = await prisma.student.create({
+    data: {
+      name: "Oliver Doe",
+      studentCode: "STU-1002",
+      dateOfBirth: new Date("2013-09-20"),
+      grade: 5,
+      addressStreet: "Storgatan 12",
+      addressPostal: "171 63",
+      addressCity: "Solna",
+      latitude: 59.3595, longitude: 18.0010,
+      schoolId: school.id,
+      parentId: parent1.id,
+      routeId: routeA.id,
+      status: StudentStatus.ACTIVE,
+    },
+  });
 
-  // Students for Parent 2 — Maria (Route B)
-  const [lukas, sofia] = await Promise.all([
-    prisma.student.create({
-      data: {
-        name: "Lukas Svensson",
-        studentCode: "STU-00003",
-        dateOfBirth: new Date("2013-11-05"),
-        grade: 4,
-        addressStreet: "Södergatans Torg 9",
-        addressPostal: "118 25",
-        addressCity: "Stockholm",
-        latitude: 59.3100,
-        longitude: 18.0600,
-        schoolId: school.id,
-        parentId: parent2.id,
-        routeId: routeB.id,
-        status: StudentStatus.ACTIVE,
-      },
-    }),
-    prisma.student.create({
-      data: {
-        name: "Sofia Svensson",
-        studentCode: "STU-00004",
-        dateOfBirth: new Date("2015-02-28"),
-        grade: 2,
-        addressStreet: "Södergatans Torg 9",
-        addressPostal: "118 25",
-        addressCity: "Stockholm",
-        latitude: 59.3100,
-        longitude: 18.0600,
-        schoolId: school.id,
-        parentId: parent2.id,
-        routeId: routeB.id,
-        status: StudentStatus.ACTIVE,
-      },
-    }),
-  ]);
-  console.log("✅ Students: Emma, Oliver, Lukas, Sofia");
+  const lukas = await prisma.student.create({
+    data: {
+      name: "Lukas Svensson",
+      studentCode: "STU-2001",
+      dateOfBirth: new Date("2014-11-02"),
+      grade: 4,
+      addressStreet: "Götgatan 22",
+      addressPostal: "118 46",
+      addressCity: "Stockholm",
+      latitude: 59.3180, longitude: 18.0720,
+      schoolId: school.id,
+      parentId: parent2.id,
+      routeId: routeB.id,
+      status: StudentStatus.ACTIVE,
+    },
+  });
 
   // ── Emergency Contacts ───────────────────────────────────────
   await prisma.emergencyContact.createMany({
     data: [
       { studentId: emma.id, name: "Jane Doe", relationship: "Mother", phone: "+46 70 111 2222", email: "jane.doe@example.com", isPrimary: true },
-      { studentId: emma.id, name: "Bob Doe", relationship: "Grandfather", phone: "+46 70 333 4444", isPrimary: false },
-      { studentId: oliver.id, name: "Jane Doe", relationship: "Mother", phone: "+46 70 111 2222", email: "jane.doe@example.com", isPrimary: true },
       { studentId: lukas.id, name: "Erik Svensson", relationship: "Father", phone: "+46 70 555 6666", email: "erik@example.com", isPrimary: true },
-      { studentId: sofia.id, name: "Erik Svensson", relationship: "Father", phone: "+46 70 555 6666", email: "erik@example.com", isPrimary: true },
     ],
   });
-  console.log("✅ Emergency contacts created");
 
   // ── Consents ─────────────────────────────────────────────────
   await prisma.consent.createMany({
     data: [
-      { userId: parent1.id, studentId: emma.id, type: "DATA_PROCESSING", granted: true, grantedAt: new Date(), ipAddress: "127.0.0.1", userAgent: "seed-script", version: "1.0" },
-      { userId: parent1.id, studentId: oliver.id, type: "DATA_PROCESSING", granted: true, grantedAt: new Date(), ipAddress: "127.0.0.1", userAgent: "seed-script", version: "1.0" },
-      { userId: parent2.id, studentId: lukas.id, type: "DATA_PROCESSING", granted: true, grantedAt: new Date(), ipAddress: "127.0.0.1", userAgent: "seed-script", version: "1.0" },
-      { userId: parent2.id, studentId: sofia.id, type: "DATA_PROCESSING", granted: false, grantedAt: new Date(), ipAddress: "127.0.0.1", userAgent: "seed-script", version: "1.0" },
+      { userId: parent1.id, studentId: emma.id, type: "DATA_PROCESSING", granted: true, grantedAt: new Date(), ipAddress: "192.168.1.1", userAgent: "Mozilla/5.0", version: "1.1" },
+      { userId: parent2.id, studentId: lukas.id, type: "DATA_PROCESSING", granted: true, grantedAt: new Date(), ipAddress: "192.168.1.5", userAgent: "Mozilla/5.0", version: "1.1" },
     ],
   });
-  console.log("✅ Consents created");
 
   // ── Notification ─────────────────────────────────────────────
   await prisma.notification.create({
     data: {
-      title: "School Bus Update",
-      body: "Route A will depart 10 minutes early tomorrow due to road works on Sveavägen.",
+      title: "Weather Warning",
+      body: "Heavy snowfall expected in Stockholm tomorrow. Bus routes may be delayed by 15-20 minutes.",
       targetType: "ALL",
       sentById: admin.id,
       successCount: 4,
       failureCount: 0,
     },
   });
-  console.log("✅ Sample notification created");
 
   console.log(`
-🎉 Seed complete! Credentials:
-  Admin:    admin@lincoln.se      / Admin123!
-  Driver 1: mike@lincoln.se       / Driver123!   → Route A (5 stops, 2 students)
-  Driver 2: anna@lincoln.se       / Driver123!   → Route B (3 stops, 2 students)
-  Parent 1: john.doe@example.com  / Parent123!   → Emma & Oliver
-  Parent 2: maria.svensson@...    / Parent123!   → Lukas & Sofia
+✅ Seed complete!
+---------------------------------------------
+School: ${school.name}
+Location: ${school.addressStreet}, ${school.addressCity}
+Admin: admin@lincoln.se / Admin123!
+---------------------------------------------
 `);
 }
 
 main()
-  .catch((e) => { console.error(e); process.exit(1); })
-  .finally(async () => { await prisma.$disconnect(); });
+  .catch((e) => {
+    console.error(e);
+    process.exit(1);
+  })
+  .finally(async () => {
+    await prisma.$disconnect();
+  });
