@@ -37,8 +37,7 @@ export default async function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6">
-      <div className="max-w-7xl mx-auto space-y-8">
+    <div className="space-y-8">
 
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -70,7 +69,7 @@ export default async function DashboardPage() {
               className={`bg-gradient-to-br ${bg} border rounded-2xl p-4 shadow-xl hover:scale-[1.02] transition-transform group`}
             >
               <div className="flex items-center justify-between mb-3">
-                <Icon className={`w-5 h-5 ${color}`} />
+             <Icon className={`w-5 h-5 ${color} mr-3`} />
                 <ChevronRight className="w-4 h-4 text-slate-700 group-hover:text-slate-500 transition" />
               </div>
               <div className="text-3xl font-bold text-white">{value}</div>
@@ -169,6 +168,5 @@ export default async function DashboardPage() {
           </div>
         </div>
       </div>
-    </div>
   );
 }

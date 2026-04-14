@@ -18,6 +18,7 @@ export default function UsersPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -48,6 +49,7 @@ export default function UsersPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchData();
   }, [searchParams]);
 
@@ -128,30 +130,46 @@ export default function UsersPage() {
       if (!open) handleCancel();
   };
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("users.title")}
-        description={t("users.description")}
-      >
-        <Button onClick={handleAddClick}>{t("users.add_user")}</Button>
-      </PageHeader>
+  if (!mounted) return null;
 
-      <div className="flex items-center py-4">
-        <Input
-          placeholder={t("users.name") + "..."}
-          className="max-w-sm"
-          onChange={(e) => handleSearch(e.target.value)}
-        />
+  return (
+    <div className="space-y-8 pb-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">
+            {t("users.title")}
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            {t("users.description")}
+          </p>
+        </div>
+        <Button 
+          onClick={handleAddClick}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-6"
+        >
+          {t("users.add_user")}
+        </Button>
       </div>
 
-      <DataTable 
-        columns={columns} 
-        data={data} 
-        pageCount={Math.ceil(total / 10)} 
-        onPageChange={handlePageChange}
-        currentPage={page}
-      />
+      <div className="premium-card p-6">
+        <div className="flex items-center pb-6 gap-4">
+          <Input
+            placeholder={t("users.name") + "..."}
+            className="max-w-sm bg-slate-950/40 border-slate-800 text-white placeholder:text-slate-500 rounded-xl"
+            onChange={(e) => handleSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="rounded-2xl overflow-hidden border border-white/5">
+          <DataTable 
+            columns={columns} 
+            data={data} 
+            pageCount={Math.ceil(total / 10)} 
+            onPageChange={handlePageChange}
+            currentPage={page}
+          />
+        </div>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[600px]">

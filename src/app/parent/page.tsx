@@ -112,8 +112,7 @@ export default function ParentHomePage() {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950 p-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-8">
 
         {/* Header */}
         <div>
@@ -244,7 +243,6 @@ export default function ParentHomePage() {
           </div>
         </div>
 
-      </div>
     </div>
   );
 }

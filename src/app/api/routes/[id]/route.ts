@@ -6,6 +6,18 @@ import { ensureRole } from "@/lib/api-auth";
 import { z } from "zod";
 import { sendToUser } from "@/lib/firebase/notification-service";
 
+const updateStopSchema = z.object({
+    id: z.string().optional(),
+    name: z.string().min(1, "Stop name is required"),
+    address: z.string().min(3, "Address is required"),
+    latitude: z.number(),
+    longitude: z.number(),
+    postalCode: z.string().optional(),
+    city: z.string().optional(),
+    scheduledTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time (HH:MM)"),
+    orderIndex: z.number().int().min(0),
+});
+
 const updateRouteSchema = z.object({
     name: z.string().min(1).optional(),
     schoolId: z.string().min(1).optional(),
@@ -19,6 +31,7 @@ const updateRouteSchema = z.object({
     thursday: z.boolean().optional(),
     friday: z.boolean().optional(),
     status: z.enum(["IDLE", "EN_ROUTE_TO_SCHOOL", "AT_SCHOOL", "EN_ROUTE_FROM_SCHOOL", "COMPLETED", "DELAYED", "EMERGENCY"]).optional(),
+    stops: z.array(updateStopSchema).optional(),
 });
 
 interface RouteParams {
@@ -74,13 +87,45 @@ export async function PATCH(req: NextRequest, { params }: RouteParams) {
             if (!driver || driver.role !== "DRIVER") throw new ApiError("Invalid driver", 400, "INVALID_DRIVER");
         }
 
-        const updatedRoute = await prisma.route.update({
-            where: { id },
-            data: data,
-            include: {
-                school: true,
-                driver: { select: { id: true, name: true } }
+        const updatedRoute = await prisma.$transaction(async (tx) => {
+            // 1. Update Route basic details
+            const { stops, ...routeData } = data;
+            
+            const route = await tx.route.update({
+                where: { id },
+                data: routeData,
+                include: {
+                    school: true,
+                    driver: { select: { id: true, name: true } }
+                }
+            });
+
+            // 2. Sync Stops if provided
+            if (stops) {
+                // Delete existing stops
+                await tx.stop.deleteMany({
+                    where: { routeId: id }
+                });
+
+                // Create new stops
+                if (stops.length > 0) {
+                    await tx.stop.createMany({
+                        data: stops.map(stop => ({
+                            routeId: id,
+                            name: stop.name,
+                            address: stop.address,
+                            latitude: stop.latitude,
+                            longitude: stop.longitude,
+                            postalCode: stop.postalCode,
+                            city: stop.city,
+                            scheduledTime: stop.scheduledTime,
+                            orderIndex: stop.orderIndex,
+                        }))
+                    });
+                }
             }
+
+            return route;
         });
 
         // Notify Driver of changes

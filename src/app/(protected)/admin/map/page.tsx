@@ -55,6 +55,7 @@ interface RouteData {
 
 export default function GlobalMapPage() {
     const { t } = useTranslation("common");
+    const [mounted, setMounted] = useState(false);
     const [routes, setRoutes] = useState<RouteData[]>([]);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date>(new Date());
@@ -76,6 +77,7 @@ export default function GlobalMapPage() {
     };
 
     useEffect(() => {
+        setMounted(true);
         fetchRoutes();
         const interval = setInterval(fetchRoutes, 5000); // 5s polling
         return () => clearInterval(interval);
@@ -160,26 +162,37 @@ export default function GlobalMapPage() {
         ? [centerLat / pointCount, centerLng / pointCount] 
         : [59.3293, 18.0686]; // Stockholm
 
+    if (!mounted) return null;
+
     return (
-        <div className="space-y-6 h-[calc(100vh-100px)] flex flex-col">
-            <PageHeader
-                title="Live Map"
-                description="Global view of all active routes and buses."
-            >
-                <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground mr-2" suppressHydrationWarning>
-                        Updated: {lastUpdated.toLocaleTimeString()}
+        <div className="space-y-8 h-[calc(100vh-120px)] flex flex-col pb-8">
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-3xl font-bold text-white tracking-tight">
+                        Live Map
+                    </h1>
+                    <p className="text-slate-400 text-sm mt-1">
+                        Global view of all active routes and buses.
+                    </p>
+                </div>
+                <div className="flex items-center gap-4">
+                    <span className="text-xs text-slate-500 font-medium" suppressHydrationWarning>
+                        Last Sync: {lastUpdated.toLocaleTimeString()}
                     </span>
-                    <Button variant="outline" size="sm" onClick={fetchRoutes} disabled={loading}>
-                         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
-                         <span className="ml-2">Refresh</span>
+                    <Button 
+                        onClick={fetchRoutes} 
+                        disabled={loading}
+                        className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-4"
+                    >
+                        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <RefreshCw className="h-4 w-4" />}
+                        <span className="ml-2 font-semibold">Sync Map</span>
                     </Button>
                 </div>
-            </PageHeader>
+            </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 flex-1 min-h-0">
-                <Card className="lg:col-span-3 flex flex-col min-h-0">
-                    <CardContent className="p-0 flex-1 relative">
+                <div className="lg:col-span-3 flex flex-col min-h-0 premium-card overflow-hidden">
+                    <div className="flex-1 relative">
                         <Map 
                             center={center} 
                             zoom={11} 
@@ -189,60 +202,60 @@ export default function GlobalMapPage() {
                          />
                          
                          {/* Legend Overlay */}
-                         <div className="absolute top-4 right-4 bg-white/90 dark:bg-black/90 p-3 rounded-md shadow-md z-[400] max-h-[300px] overflow-y-auto w-64">
-                            <h4 className="font-semibold text-sm mb-2 flex items-center gap-2">
-                                <MapIcon className="h-4 w-4" /> Routes
+                         <div className="absolute top-4 right-4 bg-slate-900/90 backdrop-blur-md border border-white/10 p-4 rounded-2xl shadow-2xl z-[400] max-h-[300px] overflow-y-auto w-64 animate-in slide-in-from-right-4 duration-500">
+                            <h4 className="font-semibold text-sm text-white mb-3 flex items-center gap-2 border-b border-white/5 pb-2">
+                                <MapIcon className="h-4 w-4 text-cyan-400" /> Active Routes
                             </h4>
-                            <div className="space-y-2">
+                            <div className="space-y-2.5">
                                 {routes.map((route, index) => (
                                     <div key={route.id} className="flex items-center justify-between text-xs">
                                         <div className="flex items-center gap-2 truncate">
                                             <span 
-                                                className="w-3 h-3 rounded-full block shrink-0" 
+                                                className="w-2.5 h-2.5 rounded-full block shrink-0 shadow-[0_0_8px_rgba(0,0,0,0.5)]" 
                                                 style={{ backgroundColor: ROUTE_COLORS[index % ROUTE_COLORS.length] }}
                                             />
-                                            <span className="truncate" title={route.name}>{route.name}</span>
+                                            <span className="truncate text-slate-300 font-medium" title={route.name}>{route.name}</span>
                                         </div>
-                                        <Badge variant="outline" className="text-[10px] h-5">{route.status}</Badge>
+                                        <Badge className="text-[9px] h-4 bg-slate-800 border-white/5 text-slate-400 capitalize">{route.status?.toLowerCase().replace(/_/g, " ")}</Badge>
                                     </div>
                                 ))}
-                                {routes.length === 0 && <p className="text-muted-foreground">No active routes</p>}
+                                {routes.length === 0 && <p className="text-slate-500 text-[11px] py-1">No active routes</p>}
                             </div>
                          </div>
-                    </CardContent>
-                </Card>
-
-                <Card className="flex flex-col min-h-0 overflow-hidden">
-                    <div className="p-4 border-b font-semibold bg-muted/40">
-                        Active Stats
                     </div>
-                    <div className="p-4 space-y-4 overflow-y-auto">
-                         <div className="grid grid-cols-2 gap-4">
-                            <div className="bg-blue-50 dark:bg-blue-950 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+                </div>
+
+                <div className="flex flex-col min-h-0 premium-card overflow-hidden">
+                    <div className="p-5 border-b border-white/5 font-bold text-white tracking-wide bg-white/5">
+                        Live Stats
+                    </div>
+                    <div className="p-5 space-y-6 overflow-y-auto">
+                         <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-indigo-500/10 border border-indigo-500/20 p-4 rounded-2xl text-center">
+                                <div className="text-2xl font-bold text-indigo-400 tracking-tighter">
                                     {routes.length}
                                 </div>
-                                <div className="text-xs text-muted-foreground">Routes</div>
+                                <div className="text-[10px] uppercase font-bold text-indigo-500/60 mt-0.5 tracking-wider">Routes</div>
                             </div>
-                             <div className="bg-green-50 dark:bg-green-950 p-3 rounded-lg text-center">
-                                <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+                             <div className="bg-cyan-500/10 border border-cyan-500/20 p-4 rounded-2xl text-center">
+                                <div className="text-2xl font-bold text-cyan-400 tracking-tighter">
                                     {routes.reduce((acc, r) => acc + (r._count?.students || 0), 0)}
                                 </div>
-                                <div className="text-xs text-muted-foreground">Students</div>
+                                <div className="text-[10px] uppercase font-bold text-cyan-500/60 mt-0.5 tracking-wider">Pass.</div>
                             </div>
                          </div>
                          
-                         <div className="space-y-2 pt-2">
-                            <h4 className="text-sm font-medium text-muted-foreground">Stops Overview</h4>
+                         <div className="space-y-3">
+                            <h4 className="text-xs font-bold text-slate-500 uppercase tracking-widest pl-1">Operational Health</h4>
                              {routes.map(r => (
-                                 <div key={r.id} className="flex justify-between text-sm py-1 border-b last:border-0 border-dashed">
-                                     <span className="truncate max-w-[120px]">{r.name}</span>
-                                     <span className="font-mono text-xs">{r.stops.length} stops</span>
+                                 <div key={r.id} className="flex justify-between items-center text-sm p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition group">
+                                     <span className="truncate text-slate-300 font-medium">{r.name}</span>
+                                     <span className="text-[10px] font-mono bg-indigo-500/20 text-indigo-400 px-2 py-0.5 rounded-md group-hover:bg-indigo-500/30 transition">{r.stops.length} STOPS</span>
                                  </div>
                              ))}
                          </div>
                     </div>
-                </Card>
+                </div>
             </div>
         </div>
     );

@@ -19,10 +19,9 @@ export function Header() {
     <header className="sticky top-0 z-30 h-16 w-full">
       <div
         className="
-          flex h-16 items-center justify-between px-4 sm:px-6
-          border-b border-slate-200/80 dark:border-slate-800/80
-          bg-white/80 dark:bg-slate-950/60
-          backdrop-blur supports-[backdrop-filter]:bg-white/60 supports-[backdrop-filter]:dark:bg-slate-950/40
+          flex h-20 items-center justify-between px-4 sm:px-8
+          border-b border-white/5
+          bg-slate-950/40 backdrop-blur-xl
         "
       >
         {/* Left */}

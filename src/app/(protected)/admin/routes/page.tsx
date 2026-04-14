@@ -17,6 +17,7 @@ export default function RoutesPage() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
+  const [mounted, setMounted] = useState(false);
   const [data, setData] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -47,6 +48,7 @@ export default function RoutesPage() {
   };
 
   useEffect(() => {
+    setMounted(true);
     fetchData();
   }, [searchParams]);
 
@@ -115,26 +117,55 @@ export default function RoutesPage() {
       if (!open) handleCancel();
   };
 
-  return (
-    <div className="space-y-6">
-      <PageHeader
-        title={t("routes.title")}
-        description={t("routes.description")}
-      >
-        <Button onClick={handleAddClick}>{t("routes.add_route")}</Button>
-      </PageHeader>
+  if (!mounted) return null;
 
-      <div className="flex items-center py-4">
-        {/* Placeholder filter controls could go here (School/Driver filter) */}
+  return (
+    <div className="space-y-8 pb-8">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">
+            {t("routes.title")}
+          </h1>
+          <p className="text-slate-400 text-sm mt-1">
+            {t("routes.description")}
+          </p>
+        </div>
+        <Button 
+          onClick={handleAddClick}
+          className="bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl px-6"
+        >
+          {t("routes.add_route")}
+        </Button>
       </div>
 
-      <DataTable 
-        columns={columns} 
-        data={data} 
-        pageCount={Math.ceil(total / 10)} 
-        onPageChange={(p) => router.push(`/admin/routes?page=${p}`)}
-        currentPage={page}
-      />
+      <div className="premium-card p-6">
+        <div className="flex items-center pb-6 gap-4">
+          <Input
+            placeholder="Search routes..."
+            className="max-w-sm bg-slate-950/40 border-slate-800 text-white placeholder:text-slate-500 rounded-xl"
+            onChange={(e) => {
+              const params = new URLSearchParams(searchParams);
+              if (e.target.value) params.set("search", e.target.value);
+              else params.delete("search");
+              router.replace(`/admin/routes?${params.toString()}`);
+            }}
+          />
+        </div>
+
+        <div className="rounded-2xl overflow-hidden border border-white/5">
+          <DataTable 
+            columns={columns} 
+            data={data} 
+            pageCount={Math.ceil(total / 10)} 
+            onPageChange={(p) => {
+              const params = new URLSearchParams(searchParams);
+              params.set("page", p.toString());
+              router.push(`/admin/routes?${params.toString()}`);
+            }}
+            currentPage={page}
+          />
+        </div>
+      </div>
 
       <Dialog open={isOpen} onOpenChange={onOpenChange}>
         <DialogContent className="sm:max-w-[700px]">

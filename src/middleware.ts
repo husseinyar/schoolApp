@@ -49,10 +49,13 @@ export default withAuth(
 
 export const config = {
     matcher: [
-        "/",
+        "/dashboard",
         "/dashboard/:path*",
+        "/admin",
         "/admin/:path*",
+        "/driver",
         "/driver/:path*",
+        "/parent",
         "/parent/:path*",
         "/api/consent/:path*",
     ],

@@ -262,4 +262,12 @@ body {
   body {
     @apply bg-background text-foreground;
   }
+
+  .premium-card {
+    @apply bg-slate-900/60 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl transition-all duration-300;
+  }
+
+  .premium-card:hover {
+    @apply border-white/20 bg-slate-900/70 scale-[1.005];
+  }
 }

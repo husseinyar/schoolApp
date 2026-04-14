@@ -146,8 +146,7 @@ export default function DriverHomePage() {
   const presentToday = studentCount - absentToday;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-cyan-950 p-6">
-      <div className="max-w-4xl mx-auto space-y-8">
+    <div className="space-y-8">
 
         {/* Status Banners */}
         <div className="space-y-3">
@@ -304,7 +303,6 @@ export default function DriverHomePage() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }

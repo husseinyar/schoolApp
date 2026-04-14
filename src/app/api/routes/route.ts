@@ -5,6 +5,17 @@ import { prisma } from "@/lib/prisma";
 import { ensureRole } from "@/lib/api-auth";
 import { z } from "zod";
 
+const createStopSchema = z.object({
+    name: z.string().min(1, "Stop name is required"),
+    address: z.string().min(3, "Address is required"),
+    latitude: z.number(),
+    longitude: z.number(),
+    postalCode: z.string().optional(),
+    city: z.string().optional(),
+    scheduledTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, "Invalid time (HH:MM)"),
+    orderIndex: z.number().int().min(0),
+});
+
 const createRouteSchema = z.object({
     name: z.string().min(1, "Name is required"),
     schoolId: z.string().min(1, "School is required"),
@@ -17,6 +28,7 @@ const createRouteSchema = z.object({
     wednesday: z.boolean().default(true),
     thursday: z.boolean().default(true),
     friday: z.boolean().default(true),
+    stops: z.array(createStopSchema).optional().default([]),
 });
 
 export async function GET(req: NextRequest) {
@@ -96,10 +108,23 @@ export async function POST(req: NextRequest) {
                 wednesday: data.wednesday,
                 thursday: data.thursday,
                 friday: data.friday,
+                stops: {
+                    create: data.stops.map(stop => ({
+                        name: stop.name,
+                        address: stop.address,
+                        latitude: stop.latitude,
+                        longitude: stop.longitude,
+                        postalCode: stop.postalCode,
+                        city: stop.city,
+                        scheduledTime: stop.scheduledTime,
+                        orderIndex: stop.orderIndex,
+                    }))
+                }
             },
             include: {
                 school: true,
-                driver: true
+                driver: true,
+                stops: true
             }
         });
 
