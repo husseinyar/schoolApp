@@ -12,6 +12,7 @@ const updateStudentSchema = z.object({
     schoolId: z.string().min(1, "School is required").optional(),
     parentId: z.string().nullable().optional(),
     routeId: z.string().nullable().optional(),
+    stopId: z.string().nullable().optional(),
     status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]).optional(),
 
     // Address — relaxed: city/postal may be empty (auto-filled by Google Places)
@@ -28,10 +29,37 @@ async function updateStudent(id: string, body: unknown) {
     const existing = await prisma.student.findUnique({ where: { id } });
     if (!existing) throw new ApiError("Student not found", 404, "NOT_FOUND");
 
+    // Cross-validate Stop and Route
+    const targetRouteId = data.routeId !== undefined ? data.routeId : existing.routeId;
+    const targetStopId = data.stopId !== undefined ? data.stopId : existing.stopId;
+
+    if (targetStopId && targetRouteId) {
+        const stop = await prisma.stop.findFirst({
+            where: { id: targetStopId, routeId: targetRouteId }
+        });
+        if (!stop) {
+            throw new ApiError("Selected stop does not belong to the selected route", 400, "INVALID_STOP");
+        }
+    }
+
     const student = await prisma.student.update({
         where: { id },
-        data: { ...data },
-        include: { school: true },
+        data: {
+            ...(data.name && { name: data.name }),
+            ...(data.dateOfBirth && { dateOfBirth: data.dateOfBirth }),
+            ...(data.grade !== undefined && { grade: data.grade }),
+            ...(data.schoolId && { schoolId: data.schoolId }),
+            ...(data.parentId !== undefined && { parentId: data.parentId }),
+            ...(data.routeId !== undefined && { routeId: data.routeId }),
+            ...(data.stopId !== undefined && { stopId: data.stopId }),
+            ...(data.status && { status: data.status }),
+            ...(data.addressStreet && { addressStreet: data.addressStreet }),
+            ...(data.addressCity !== undefined && { addressCity: data.addressCity }),
+            ...(data.addressPostal !== undefined && { addressPostal: data.addressPostal }),
+            ...(data.latitude !== undefined && { latitude: data.latitude }),
+            ...(data.longitude !== undefined && { longitude: data.longitude }),
+        },
+        include: { school: true, stop: true },
     });
     return successResponse(student);
 }
@@ -51,6 +79,7 @@ export async function GET(
                 school: true,
                 parent: { select: { id: true, name: true, email: true, phone: true } },
                 route: true,
+                stop: true,
             },
         });
 

@@ -46,18 +46,60 @@ function getTodayKey() {
 export default function ParentHomePage() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    let mounted = true;
+    
     fetch("/api/parent/dashboard")
-      .then((r) => r.json())
-      .then((d) => setData(d))
-      .finally(() => setLoading(false));
+      .then(async (r) => {
+        if (!r.ok) {
+          const text = await r.text();
+          let errorMessage = `Error ${r.status}`;
+          try {
+            const body = JSON.parse(text);
+            errorMessage = body.error || body.details || errorMessage;
+          } catch (e) {
+            // Not JSON
+          }
+          throw new Error(errorMessage);
+        }
+        return r.json();
+      })
+      .then((d) => {
+        if (mounted) setData(d);
+      })
+      .catch((err) => {
+        console.error("Dashboard load failed:", err);
+        if (mounted) setError(err.message);
+      })
+      .finally(() => {
+        if (mounted) setLoading(false);
+      });
+
+    return () => { mounted = false; };
   }, []);
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64 text-slate-400">
         <Loader2 className="w-6 h-6 animate-spin mr-2" /> Loading…
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col items-center justify-center h-64 text-slate-400 space-y-4">
+        <AlertTriangle className="w-12 h-12 text-rose-500" />
+        <p className="text-white font-semibold">Failed to load dashboard</p>
+        <p className="text-sm">{error}</p>
+        <button 
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition"
+        >
+          Try Again
+        </button>
       </div>
     );
   }

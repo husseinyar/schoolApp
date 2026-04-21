@@ -13,6 +13,7 @@ const createStudentSchema = z.object({
     schoolId: z.string().min(1, "School is required"),
     parentId: z.string().optional().nullable(), // Allow null or empty for optional
     routeId: z.string().optional().nullable(),
+    stopId: z.string().optional().nullable(),
 
     // Address — city/postal are auto-filled by Google Places and may be empty
     addressStreet: z.string().min(1, "Street address is required"),
@@ -67,6 +68,7 @@ export async function GET(req: NextRequest) {
                     school: { select: { name: true } },
                     parent: { select: { name: true, email: true, phone: true } },
                     route: { select: { name: true } },
+                    stop: { select: { name: true } },
                 },
                 orderBy: { name: "asc" },
             }),
@@ -97,9 +99,25 @@ export async function POST(req: NextRequest) {
         const school = await prisma.school.findUnique({ where: { id: data.schoolId } });
         if (!school) throw new ApiError("School not found", 404, "SCHOOL_NOT_FOUND");
 
-        // Generate Student Code (STU-XXXXXX)
-        // Retry logic could be added here for collision, but we trust random for now
-        const studentCode = `STU-${Math.floor(100000 + Math.random() * 900000)}`;
+        // Generate Student Code (STU-XXXXXX) with collision check
+        async function generateStudentCode(): Promise<string> {
+            while (true) {
+                const code = `STU-${Math.floor(100000 + Math.random() * 900000)}`;
+                const existing = await prisma.student.findUnique({ where: { studentCode: code } });
+                if (!existing) return code;
+            }
+        }
+        const studentCode = await generateStudentCode();
+
+        // Cross-validate Stop and Route
+        if (data.stopId && data.routeId) {
+            const stop = await prisma.stop.findFirst({
+                where: { id: data.stopId, routeId: data.routeId }
+            });
+            if (!stop) {
+                throw new ApiError("Selected stop does not belong to the selected route", 400, "INVALID_STOP");
+            }
+        }
 
         const student = await prisma.student.create({
             data: {
@@ -110,6 +128,7 @@ export async function POST(req: NextRequest) {
                 schoolId: data.schoolId,
                 parentId: data.parentId || null,
                 routeId: data.routeId || null,
+                stopId: data.stopId || null,
                 addressStreet: data.addressStreet,
                 addressCity: data.addressCity,
                 addressPostal: data.addressPostal,
@@ -119,7 +138,8 @@ export async function POST(req: NextRequest) {
             include: {
                 school: true,
                 parent: true,
-                route: true
+                route: true,
+                stop: true
             }
         });
 

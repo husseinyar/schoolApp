@@ -32,15 +32,15 @@ export async function sendPushNotification(
 export async function sendProximityAlert(
     tokens: string[],
     studentName: string,
+    stopName: string,
     distanceMeters: number
 ) {
     const title = "Bus Nearby! 🚌";
-    const body = `The bus is approximately ${Math.round(
-        distanceMeters
-    )}m away for ${studentName}. Please be ready!`;
+    const body = `The bus is approaching ${stopName}. Please have ${studentName} ready!`;
 
     return sendPushNotification(tokens, title, body, {
         type: "PROXIMITY_ALERT",
         studentName,
+        stopName,
     });
 }

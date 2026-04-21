@@ -6,12 +6,12 @@
 
 generator client {
   provider = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+
 }
 
 datasource db {
   provider = "postgresql"
-
+ 
 }
 // Users (Authentication)
 model User {
@@ -122,6 +122,9 @@ model Student {
   routeId        String?
   route          Route?   @relation(fields: [routeId], references: [id])
   
+  stopId         String?
+  stop           Stop?    @relation(fields: [stopId], references: [id])
+  
   // Status
   status         StudentStatus @default(ACTIVE)
   
@@ -142,6 +145,7 @@ model Student {
   @@index([parentId])
   @@index([routeId])
   @@index([studentCode])
+  @@index([stopId])
 }
 
 enum StudentStatus {
@@ -216,6 +220,8 @@ model Stop {
   
   scheduledTime  String   // "07:15"
   orderIndex     Int
+  
+  students       Student[]
   
   createdAt      DateTime @default(now())
   
@@ -410,6 +416,7 @@ model TripLog {
   incidents    Incident[]
 
   alertedStudentIds String[] @default([])
+  alertedStopIds    String[] @default([])
 
   createdAt    DateTime   @default(now())
 

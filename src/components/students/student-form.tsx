@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm, Controller, SubmitHandler } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
@@ -27,6 +27,7 @@ const studentSchema = z.object({
     schoolId: z.string().min(1, "School is required"),
     parentId: z.string().optional().nullable(),
     routeId: z.string().optional().nullable(),
+    stopId: z.string().optional().nullable(),
     status: z.enum(["ACTIVE", "INACTIVE", "GRADUATED", "TRANSFERRED"]).default("ACTIVE"),
 
     // Address — single formatted string from Google
@@ -51,6 +52,8 @@ interface StudentFormProps {
     parents?: { id: string; name: string; email: string }[];
 }
 
+interface StopOption { id: string; name: string; scheduledTime: string; }
+
 export function StudentForm({
     initialData,
     onSubmit,
@@ -60,6 +63,9 @@ export function StudentForm({
     routes = [],
     parents = [],
 }: StudentFormProps) {
+    const [stops, setStops] = useState<StopOption[]>([]);
+    const [loadingStops, setLoadingStops] = useState(false);
+
     const {
         register,
         control,
@@ -80,6 +86,7 @@ export function StudentForm({
                   longitude: initialData.longitude || 0,
                   parentId: initialData.parentId || "null",
                   routeId: initialData.routeId || "null",
+                  stopId: initialData.stopId || "null",
               }
             : {
                   name: "",
@@ -92,11 +99,34 @@ export function StudentForm({
                   addressPostal: "",
                   latitude: 0,
                   longitude: 0,
+                  stopId: "null",
               },
     });
 
     // The visible address input value (controlled separately for the autocomplete)
     const addressStreet = watch("addressStreet");
+    const routeId = watch("routeId");
+
+    // Fetch stops when routeId changes
+    useEffect(() => {
+        if (routeId && routeId !== "null") {
+            setLoadingStops(true);
+            fetch(`/api/routes/${routeId}`)
+                .then((res) => res.json())
+                .then((json) => {
+                    if (json.success && json.data.stops) {
+                        setStops(json.data.stops);
+                    } else {
+                        setStops([]);
+                    }
+                })
+                .catch(() => setStops([]))
+                .finally(() => setLoadingStops(false));
+        } else {
+            setStops([]);
+            setValue("stopId", "null");
+        }
+    }, [routeId, setValue]);
 
     function handleAddressSelect(details: PlaceDetails) {
         setValue("addressStreet", details.formattedAddress, { shouldValidate: true });
@@ -110,6 +140,7 @@ export function StudentForm({
         const cleanData = { ...values };
         if (cleanData.parentId === "null") cleanData.parentId = null;
         if (cleanData.routeId === "null") cleanData.routeId = null;
+        if (cleanData.stopId === "null") cleanData.stopId = null;
         return onSubmit(cleanData);
     };
 
@@ -233,6 +264,36 @@ export function StudentForm({
                                 </Select>
                             )}
                         />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor="stopId">Bus Stop (Optional)</Label>
+                        <Controller
+                            control={control}
+                            name="stopId"
+                            render={({ field }) => (
+                                <Select 
+                                    onValueChange={field.onChange} 
+                                    value={field.value || "null"}
+                                    disabled={!routeId || routeId === "null" || loadingStops}
+                                >
+                                    <SelectTrigger>
+                                        <SelectValue placeholder={loadingStops ? "Loading stops..." : "Select stop"} />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="null">None</SelectItem>
+                                        {stops.map((stop) => (
+                                            <SelectItem key={stop.id} value={stop.id}>
+                                                {stop.name} ({stop.scheduledTime})
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            )}
+                        />
+                        {(!routeId || routeId === "null") && (
+                            <p className="text-[10px] text-slate-500">Select a route first to see available stops.</p>
+                        )}
                     </div>
                 </FormGrid>
             </FormSection>

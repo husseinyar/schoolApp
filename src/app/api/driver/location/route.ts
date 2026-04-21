@@ -3,7 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { calculateDistance } from "@/lib/utils/location";
-import { sendProximityAlert } from "@/lib/firebase/push-service";
+import { sendProximityAlertToUser } from "@/lib/firebase/notification-service";
 
 const ALERT_DISTANCE_THRESHOLD = 500; // meters
 
@@ -44,21 +44,22 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // 2. Proximity Check Logic
-        // Fetch trip details with students and their parents' tokens
+        // 2. Proximity Check Logic (STOP-BASED)
+        // Fetch trip with route stops and the students assigned to those stops
         const trip = await prisma.tripLog.findUnique({
             where: { id: tripId },
             include: {
                 route: {
                     include: {
-                        students: {
-                            where: {
-                                status: "ACTIVE"
-                            },
+                        stops: {
+                            orderBy: { orderIndex: 'asc' },
                             include: {
-                                parent: {
+                                students: {
+                                    where: { status: "ACTIVE" },
                                     include: {
-                                        fcmTokens: true
+                                        parent: {
+                                            include: { fcmTokens: true }
+                                        }
                                     }
                                 }
                             }
@@ -68,40 +69,57 @@ export async function POST(req: NextRequest) {
             }
         });
 
-        if (trip?.route?.students) {
-            const alertedIds = new Set(trip.alertedStudentIds);
-            const studentsToNotify = trip.route.students.filter(s =>
-                !alertedIds.has(s.id) && s.parent?.fcmTokens.length
-            );
+        if (trip?.route?.stops) {
+            const alertedStopIds = new Set(trip.alertedStopIds);
+            
+            for (const stop of trip.route.stops) {
+                // 1. Skip if stop already alerted for this trip
+                if (alertedStopIds.has(stop.id)) continue;
 
-            for (const student of studentsToNotify) {
+                // 2. Calculate distance to the stop
                 const distance = calculateDistance(
                     latitude,
                     longitude,
-                    student.latitude,
-                    student.longitude
+                    stop.latitude,
+                    stop.longitude
                 );
 
                 if (distance <= ALERT_DISTANCE_THRESHOLD) {
-                    console.log(`[PROXIMITY] Student ${student.name} is ${Math.round(distance)}m away. Triggering alert.`);
-
-                    const tokens = student.parent!.fcmTokens.map(t => t.token);
-
-                    // Send alert (async, don't block response if possible or handle errors)
-                    try {
-                        await sendProximityAlert(tokens, student.name, distance);
-
-                        // Mark as alerted
-                        await prisma.tripLog.update({
-                            where: { id: tripId },
-                            data: {
-                                alertedStudentIds: {
-                                    push: student.id
+                    // 3. Atomic "Claim" of the stop alert
+                    const claimed = await prisma.tripLog.updateMany({
+                        where: {
+                            id: tripId,
+                            NOT: {
+                                alertedStopIds: {
+                                    has: stop.id
                                 }
                             }
+                        },
+                        data: {
+                            alertedStopIds: {
+                                push: stop.id
+                            }
+                        }
+                    });
+
+                    // If count is 0, another ping already handled this stop
+                    if (claimed.count === 0) continue;
+
+                    console.log(`[PROXIMITY] Bus is approaching stop: ${stop.name} (${Math.round(distance)}m).`);
+
+                    // 4. Notify students assigned to this stop
+                    for (const student of stop.students) {
+                        if (!student.parentId) continue;
+
+                        // 5. Fire-and-forget notification (now includes DB logging)
+                        sendProximityAlertToUser(
+                            student.parentId,
+                            student.name,
+                            stop.name,
+                            session.user.id
+                        ).catch(pushErr => {
+                            console.error(`[PROXIMITY] Failed to alert parent of ${student.name}:`, pushErr);
                         });
-                    } catch (pushErr) {
-                        console.error(`[PROXIMITY] Failed to send alert for student ${student.id}:`, pushErr);
                     }
                 }
             }

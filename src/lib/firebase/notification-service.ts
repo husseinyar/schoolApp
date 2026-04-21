@@ -28,7 +28,8 @@ async function getAllTokens(): Promise<string[]> {
 async function dispatchMulticast(
     tokens: string[],
     title: string,
-    body: string
+    body: string,
+    data?: Record<string, string>
 ): Promise<SendResult> {
     if (tokens.length === 0) return { successCount: 0, failureCount: 0 };
 
@@ -42,6 +43,7 @@ async function dispatchMulticast(
         const response = await adminMessaging.sendEachForMulticast({
             tokens: chunk,
             notification: { title, body },
+            data: data || {},
             webpush: {
                 notification: { title, body, icon: "/favicon.ico" },
                 fcmOptions: { link: "/dashboard" },
@@ -126,6 +128,36 @@ export async function sendToAll(
             body,
             targetType: "ALL",
             targetValue: null,
+            successCount: result.successCount,
+            failureCount: result.failureCount,
+            sentById,
+        },
+    });
+    return result;
+}
+
+export async function sendProximityAlertToUser(
+    userId: string,
+    studentName: string,
+    stopName: string,
+    sentById: string
+): Promise<SendResult> {
+    const title = "Bus Nearby! 🚌";
+    const body = `The bus is approaching ${stopName}. Please have ${studentName} ready!`;
+    
+    const tokens = await getTokensForUser(userId);
+    const result = await dispatchMulticast(tokens, title, body, {
+        type: "PROXIMITY_ALERT",
+        studentName,
+        stopName,
+    });
+    
+    await prisma.notification.create({
+        data: {
+            title,
+            body,
+            targetType: "USER",
+            targetValue: userId,
             successCount: result.successCount,
             failureCount: result.failureCount,
             sentById,
